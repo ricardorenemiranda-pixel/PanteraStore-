@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://panterastore-api.onrender.com/api/:path*"
+    }
+  ]
+}
