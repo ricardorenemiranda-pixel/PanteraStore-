@@ -1,0 +1,46 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Cambiar clave">
+  <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
+
+  <div id="state-content" class="hidden mx-auto max-w-lg text-center">
+    <h1 class="mb-3 text-2xl font-semibold">Cambiar clave</h1>
+    <div class="rounded-lg border border-dota-border bg-dota-panel p-6">
+      <p class="text-neutral-200">Próximamente.</p>
+      <p class="mt-2 text-sm text-neutral-400">
+        Por ahora tu cuenta solo se maneja con tu login de Steam, así que no hay una
+        contraseña propia de este sitio que cambiar. Si más adelante agregamos una
+        cuenta con contraseña local, esta pantalla la va a controlar.
+      </p>
+      <a href="/seguridad" class="mt-4 inline-block text-sm text-dota-gold underline underline-offset-2">
+        Ver Seguridad
+      </a>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { getMe } from "../lib/api";
+
+  function show(id: string) {
+    document.getElementById(id)?.classList.remove("hidden");
+  }
+  function hide(id: string) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+
+  async function main() {
+    const me = await getMe();
+    if (!me.authenticated) {
+      window.location.href = "/";
+      return;
+    }
+
+    hide("state-loading");
+    show("state-content");
+  }
+
+  main();
+</script>

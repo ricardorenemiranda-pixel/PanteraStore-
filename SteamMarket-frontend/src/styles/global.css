@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dota-bg: #100b1e;
+  --color-dota-panel: #1b1533;
+  --color-dota-border: #3a2d5c;
+  --color-dota-red: #9333ea;
+  --color-dota-gold: #c084fc;
+}
+
+body {
+  background-color: var(--color-dota-bg);
+  color: #e7e7e7;
+}

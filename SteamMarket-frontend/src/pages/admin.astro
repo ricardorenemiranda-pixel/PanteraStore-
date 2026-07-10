@@ -1,0 +1,367 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Admin" wide>
+  <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
+
+  <div id="state-forbidden" class="hidden py-20 text-center text-neutral-400">
+    No tienes acceso a esta página.
+  </div>
+
+  <div id="state-content" class="hidden space-y-8">
+    <section>
+      <h1 class="mb-4 text-xl font-semibold text-neutral-100">Órdenes de venta pendientes</h1>
+      <div id="orders-list" class="space-y-4"></div>
+      <p id="orders-empty" class="hidden py-8 text-center text-sm text-neutral-500">
+        No hay órdenes pendientes.
+      </p>
+    </section>
+
+    <section>
+      <h1 class="mb-4 text-xl font-semibold text-neutral-100">Retiros pendientes</h1>
+      <div id="withdrawals-list" class="space-y-3"></div>
+      <p id="withdrawals-empty" class="hidden py-8 text-center text-sm text-neutral-500">
+        No hay retiros pendientes.
+      </p>
+    </section>
+
+    <section id="section-accounts" class="hidden">
+      <h1 class="mb-4 text-xl font-semibold text-neutral-100">Cuentas admin</h1>
+      <p class="mb-4 text-sm text-neutral-500">
+        Cuentas que pueden aprobar órdenes y retiros, cada una con su propia Trade URL (útil si
+        una cuenta no tiene espacio para recibir más items).
+      </p>
+
+      <div id="accounts-list" class="mb-4 space-y-2"></div>
+
+      <form id="form-add-account" class="flex flex-wrap items-end gap-2 rounded-lg border border-dota-border bg-dota-panel p-4">
+        <div>
+          <label for="acc-steamid" class="mb-1 block text-xs text-neutral-400">SteamID64</label>
+          <input
+            id="acc-steamid"
+            type="text"
+            placeholder="7656119..."
+            class="w-44 rounded border border-dota-border bg-dota-bg px-2 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label for="acc-tradeurl" class="mb-1 block text-xs text-neutral-400">Trade URL</label>
+          <input
+            id="acc-tradeurl"
+            type="text"
+            placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..."
+            class="w-80 rounded border border-dota-border bg-dota-bg px-2 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+          />
+        </div>
+        <div>
+          <label for="acc-label" class="mb-1 block text-xs text-neutral-400">Etiqueta (opcional)</label>
+          <input
+            id="acc-label"
+            type="text"
+            placeholder="Almacén 2"
+            class="w-32 rounded border border-dota-border bg-dota-bg px-2 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+          />
+        </div>
+        <button
+          id="btn-add-account"
+          type="submit"
+          class="rounded-md bg-dota-red px-4 py-1.5 text-sm font-medium text-white transition hover:brightness-110"
+        >
+          Agregar
+        </button>
+      </form>
+      <p id="account-error" class="mt-2 hidden text-sm text-dota-red"></p>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  import {
+    getMe,
+    getPendingOrders,
+    completeOrder,
+    rejectOrder,
+    getPendingWithdrawals,
+    markWithdrawalPaid,
+    rejectWithdrawal,
+    getAdminAccounts,
+    addAdminAccount,
+    removeAdminAccount,
+    type SellOrderDto,
+    type WithdrawalDto,
+    type AdminAccountDto,
+  } from "../lib/api";
+
+  const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+  const dateFmt = new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short" });
+
+  function show(id: string) {
+    document.getElementById(id)?.classList.remove("hidden");
+  }
+  function hide(id: string) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+
+  async function refreshOrders() {
+    const orders = await getPendingOrders();
+    const list = document.getElementById("orders-list");
+    if (!list) return;
+
+    list.innerHTML = "";
+    document.getElementById("orders-empty")?.classList.toggle("hidden", orders.length > 0);
+
+    for (const order of orders as SellOrderDto[]) {
+      list.appendChild(renderOrderCard(order));
+    }
+  }
+
+  function renderOrderCard(order: SellOrderDto): HTMLElement {
+    const card = document.createElement("article");
+    card.className = "rounded-lg border border-dota-border bg-dota-panel p-4";
+
+    const header = document.createElement("div");
+    header.className = "mb-3 flex flex-wrap items-center justify-between gap-2";
+    header.innerHTML = `
+      <div>
+        <p class="text-sm font-medium text-neutral-100">SteamID: <span class="font-mono text-xs text-neutral-400">${order.steamId}</span></p>
+        <p class="text-xs text-neutral-500">${dateFmt.format(new Date(order.createdAtUtc))}</p>
+      </div>
+      <p class="text-lg font-bold text-dota-gold">${soles.format(order.totalAmount)}</p>
+    `;
+    card.appendChild(header);
+
+    const itemsGrid = document.createElement("div");
+    itemsGrid.className = "grid grid-cols-3 gap-2 sm:grid-cols-6";
+    for (const item of order.items) {
+      const itemCard = document.createElement("div");
+      itemCard.className = "rounded border border-dota-border bg-dota-bg p-2 text-center";
+      if (item.iconUrl) {
+        const img = document.createElement("img");
+        img.src = item.iconUrl;
+        img.alt = item.name;
+        img.className = "mx-auto aspect-square w-full object-contain";
+        itemCard.appendChild(img);
+      }
+      const name = document.createElement("p");
+      name.className = "mt-1 line-clamp-2 text-xs text-neutral-300";
+      name.textContent = item.name;
+      const price = document.createElement("p");
+      price.className = "text-xs font-semibold text-emerald-500";
+      price.textContent = soles.format(item.payoutPrice);
+      itemCard.appendChild(name);
+      itemCard.appendChild(price);
+      itemsGrid.appendChild(itemCard);
+    }
+    card.appendChild(itemsGrid);
+
+    const actions = document.createElement("div");
+    actions.className = "mt-3 flex gap-2";
+
+    const btnComplete = document.createElement("button");
+    btnComplete.textContent = "Marcar completado (recibí el trade)";
+    btnComplete.className =
+      "rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110";
+    btnComplete.addEventListener("click", async () => {
+      btnComplete.disabled = true;
+      const error = await completeOrder(order.id);
+      if (error) {
+        alert(error);
+        btnComplete.disabled = false;
+        return;
+      }
+      await refreshOrders();
+    });
+
+    const btnReject = document.createElement("button");
+    btnReject.textContent = "Rechazar";
+    btnReject.className =
+      "rounded-md border border-dota-red/50 px-3 py-1.5 text-xs font-medium text-dota-red transition hover:bg-dota-red/10";
+    btnReject.addEventListener("click", async () => {
+      const note = window.prompt("Motivo del rechazo (opcional):") ?? undefined;
+      btnReject.disabled = true;
+      const error = await rejectOrder(order.id, note);
+      if (error) {
+        alert(error);
+        btnReject.disabled = false;
+        return;
+      }
+      await refreshOrders();
+    });
+
+    actions.appendChild(btnComplete);
+    actions.appendChild(btnReject);
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  async function refreshWithdrawals() {
+    const withdrawals = await getPendingWithdrawals();
+    const list = document.getElementById("withdrawals-list");
+    if (!list) return;
+
+    list.innerHTML = "";
+    document.getElementById("withdrawals-empty")?.classList.toggle("hidden", withdrawals.length > 0);
+
+    for (const w of withdrawals as WithdrawalDto[]) {
+      const row = document.createElement("div");
+      row.className = "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dota-border bg-dota-panel p-4";
+
+      const info = document.createElement("div");
+      info.innerHTML = `
+        <p class="text-sm font-medium text-neutral-100">SteamID: <span class="font-mono text-xs text-neutral-400">${w.steamId}</span></p>
+        <p class="text-sm text-neutral-300">${w.method} · ${w.destination}</p>
+        <p class="text-xs text-neutral-500">${dateFmt.format(new Date(w.createdAtUtc))}</p>
+      `;
+
+      const right = document.createElement("div");
+      right.className = "flex items-center gap-3";
+
+      const amount = document.createElement("span");
+      amount.className = "text-lg font-bold text-dota-gold";
+      amount.textContent = soles.format(w.amount);
+
+      const btnPaid = document.createElement("button");
+      btnPaid.textContent = "Marcar pagado";
+      btnPaid.className = "rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110";
+      btnPaid.addEventListener("click", async () => {
+        btnPaid.disabled = true;
+        const error = await markWithdrawalPaid(w.id);
+        if (error) {
+          alert(error);
+          btnPaid.disabled = false;
+          return;
+        }
+        await refreshWithdrawals();
+      });
+
+      const btnReject = document.createElement("button");
+      btnReject.textContent = "Rechazar";
+      btnReject.className =
+        "rounded-md border border-dota-red/50 px-3 py-1.5 text-xs font-medium text-dota-red transition hover:bg-dota-red/10";
+      btnReject.addEventListener("click", async () => {
+        btnReject.disabled = true;
+        const error = await rejectWithdrawal(w.id);
+        if (error) {
+          alert(error);
+          btnReject.disabled = false;
+          return;
+        }
+        await refreshWithdrawals();
+      });
+
+      right.appendChild(amount);
+      right.appendChild(btnPaid);
+      right.appendChild(btnReject);
+
+      row.appendChild(info);
+      row.appendChild(right);
+      list.appendChild(row);
+    }
+  }
+
+  async function refreshAccounts() {
+    const accounts = await getAdminAccounts();
+    const list = document.getElementById("accounts-list");
+    if (!list) return;
+
+    list.innerHTML = "";
+
+    for (const acc of accounts as AdminAccountDto[]) {
+      const row = document.createElement("div");
+      row.className = "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dota-border bg-dota-panel p-3";
+
+      const info = document.createElement("div");
+      const line1 = document.createElement("p");
+      line1.className = "text-sm text-neutral-100";
+      line1.textContent = acc.label ? `${acc.label} — ${acc.steamId}` : acc.steamId;
+      const line2 = document.createElement("p");
+      line2.className = "break-all text-xs text-neutral-500";
+      line2.textContent = acc.tradeUrl;
+      info.appendChild(line1);
+      info.appendChild(line2);
+      row.appendChild(info);
+
+      if (acc.isSuperAdmin) {
+        const badge = document.createElement("span");
+        badge.className = "rounded bg-dota-gold/10 px-2 py-1 text-xs font-medium text-dota-gold";
+        badge.textContent = "Super admin";
+        row.appendChild(badge);
+      } else {
+        const btnRemove = document.createElement("button");
+        btnRemove.textContent = "Quitar";
+        btnRemove.className =
+          "rounded-md border border-dota-red/50 px-3 py-1.5 text-xs font-medium text-dota-red transition hover:bg-dota-red/10";
+        btnRemove.addEventListener("click", async () => {
+          btnRemove.disabled = true;
+          const error = await removeAdminAccount(acc.steamId);
+          if (error) {
+            alert(error);
+            btnRemove.disabled = false;
+            return;
+          }
+          await refreshAccounts();
+        });
+        row.appendChild(btnRemove);
+      }
+
+      list.appendChild(row);
+    }
+  }
+
+  async function main() {
+    const me = await getMe();
+    if (!me.authenticated) {
+      window.location.href = "/";
+      return;
+    }
+
+    if (!me.isAdmin) {
+      hide("state-loading");
+      show("state-forbidden");
+      return;
+    }
+
+    await Promise.all([refreshOrders(), refreshWithdrawals()]);
+
+    if (me.isSuperAdmin) {
+      show("section-accounts");
+      await refreshAccounts();
+
+      document.getElementById("form-add-account")?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        hide("account-error");
+
+        const steamIdInput = document.getElementById("acc-steamid") as HTMLInputElement | null;
+        const tradeUrlInput = document.getElementById("acc-tradeurl") as HTMLInputElement | null;
+        const labelInput = document.getElementById("acc-label") as HTMLInputElement | null;
+
+        const error = await addAdminAccount(
+          steamIdInput?.value.trim() ?? "",
+          tradeUrlInput?.value.trim() ?? "",
+          labelInput?.value.trim() ?? ""
+        );
+
+        if (error) {
+          const errorEl = document.getElementById("account-error");
+          if (errorEl) {
+            errorEl.textContent = error;
+            show("account-error");
+          }
+          return;
+        }
+
+        if (steamIdInput) steamIdInput.value = "";
+        if (tradeUrlInput) tradeUrlInput.value = "";
+        if (labelInput) labelInput.value = "";
+        await refreshAccounts();
+      });
+    }
+
+    hide("state-loading");
+    show("state-content");
+  }
+
+  main();
+</script>

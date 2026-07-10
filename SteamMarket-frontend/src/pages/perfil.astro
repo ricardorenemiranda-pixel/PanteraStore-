@@ -1,0 +1,267 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Perfil" wide>
+  <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
+
+  <div id="state-content" class="hidden grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+    <!-- Tarjeta izquierda: avatar + resumen -->
+    <section class="h-fit rounded-lg border border-dota-border bg-dota-panel p-6 text-center">
+      <span
+        id="avatar"
+        class="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-2 border-dota-gold bg-dota-gold/10 text-3xl font-semibold text-dota-gold"
+      ></span>
+      <p id="name" class="mt-4 text-lg font-semibold text-neutral-100"></p>
+      <p id="email-summary" class="text-sm text-neutral-500"></p>
+      <p class="mt-3 text-xs text-neutral-600">SteamID64</p>
+      <p id="steam-id" class="break-all font-mono text-xs text-neutral-400"></p>
+    </section>
+
+    <!-- Tarjeta derecha: detalles personales -->
+    <section class="rounded-lg border border-dota-border bg-dota-panel">
+      <div class="border-b border-dota-border px-6 py-4">
+        <h1 class="text-lg font-semibold text-neutral-100">Detalles personales</h1>
+        <p class="text-sm text-neutral-500">Mantén tu información actualizada.</p>
+      </div>
+
+      <form id="form" class="grid grid-cols-1 gap-4 px-6 py-5 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="mb-1 block text-sm font-medium text-neutral-300">Usuario</label>
+          <input
+            id="usuario"
+            type="text"
+            disabled
+            class="w-full cursor-not-allowed rounded border border-dota-border bg-dota-bg/60 px-3 py-2 text-sm text-neutral-400"
+          />
+        </div>
+
+        <div>
+          <label for="first-name" class="mb-1 block text-sm font-medium text-neutral-300">Nombres</label>
+          <input
+            id="first-name"
+            type="text"
+            class="w-full rounded border border-dota-border bg-dota-bg px-3 py-2 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label for="last-name" class="mb-1 block text-sm font-medium text-neutral-300">Apellidos</label>
+          <input
+            id="last-name"
+            type="text"
+            class="w-full rounded border border-dota-border bg-dota-bg px-3 py-2 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+          />
+        </div>
+
+        <div class="sm:col-span-2">
+          <label for="email" class="mb-1 block text-sm font-medium text-neutral-300">E-mail</label>
+          <div class="flex gap-2">
+            <input
+              id="email"
+              type="email"
+              class="w-full rounded border border-dota-border bg-dota-bg px-3 py-2 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+            />
+            <button
+              type="button"
+              disabled
+              title="Próximamente"
+              class="shrink-0 cursor-not-allowed rounded-md border border-dota-border bg-dota-bg/60 px-3 py-2 text-xs text-neutral-500"
+            >
+              Verificar correo
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label for="phone" class="mb-1 block text-sm font-medium text-neutral-300">Celular</label>
+          <div class="flex items-center gap-2">
+            <span class="shrink-0 rounded border border-dota-border bg-dota-bg/60 px-3 py-2 text-sm text-neutral-400">+51</span>
+            <input
+              id="phone"
+              type="tel"
+              placeholder="999 999 999"
+              class="w-full rounded border border-dota-border bg-dota-bg px-3 py-2 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <div class="w-28">
+            <label for="document-type" class="mb-1 block text-sm font-medium text-neutral-300">Documento</label>
+            <select
+              id="document-type"
+              class="w-full rounded border border-dota-border bg-dota-bg px-2 py-2 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+            >
+              <option value="">--</option>
+              <option value="DNI">DNI</option>
+              <option value="CE">CE</option>
+              <option value="Pasaporte">Pasaporte</option>
+            </select>
+          </div>
+          <div class="flex-1">
+            <label for="document-number" class="mb-1 block text-sm font-medium text-neutral-300">Número</label>
+            <input
+              id="document-number"
+              type="text"
+              class="w-full rounded border border-dota-border bg-dota-bg px-3 py-2 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        <p id="form-error" class="hidden text-sm text-dota-red sm:col-span-2"></p>
+        <p id="form-success" class="hidden text-sm text-emerald-500 sm:col-span-2">Perfil guardado correctamente.</p>
+
+        <div class="flex flex-wrap gap-3 pt-2 sm:col-span-2">
+          <button
+            id="btn-save"
+            type="submit"
+            class="rounded-md bg-dota-red px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Guardar perfil
+          </button>
+          <button
+            id="btn-delete"
+            type="button"
+            class="rounded-md border border-red-900 bg-red-950/40 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-950/70"
+          >
+            Eliminar datos personales
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="lg:col-span-2">
+      <p class="text-sm text-neutral-400">
+        Trade URL:
+        <a href="/trade-url" class="text-dota-gold underline underline-offset-2">
+          <span id="trade-url-status">cargando...</span>
+        </a>
+      </p>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  import { getMe, getProfile, savePersonalData, deletePersonalData } from "../lib/api";
+
+  function show(id: string) {
+    document.getElementById(id)?.classList.remove("hidden");
+  }
+  function hide(id: string) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+  function val(id: string): string {
+    return (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value ?? "";
+  }
+  function setVal(id: string, v: string | null) {
+    const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+    if (el) el.value = v ?? "";
+  }
+
+  async function main() {
+    const me = await getMe();
+    if (!me.authenticated) {
+      window.location.href = "/";
+      return;
+    }
+
+    const name = me.name ?? "Jugador";
+    const profile = await getProfile();
+
+    const nameEl = document.getElementById("name");
+    const avatarEl = document.getElementById("avatar");
+    const steamIdEl = document.getElementById("steam-id");
+    const emailSummaryEl = document.getElementById("email-summary");
+    const tradeUrlStatus = document.getElementById("trade-url-status");
+
+    if (nameEl) nameEl.textContent = name;
+    if (avatarEl) avatarEl.textContent = name.trim().charAt(0).toUpperCase() || "?";
+    if (steamIdEl) steamIdEl.textContent = profile?.steamId ?? me.steamId ?? "";
+    if (emailSummaryEl) emailSummaryEl.textContent = profile?.email ?? "";
+    if (tradeUrlStatus) {
+      tradeUrlStatus.textContent = profile?.tradeUrl ? "configurada — editar" : "no configurada — agregar";
+    }
+
+    setVal("usuario", name);
+    setVal("first-name", profile?.firstName ?? null);
+    setVal("last-name", profile?.lastName ?? null);
+    setVal("email", profile?.email ?? null);
+    setVal("phone", profile?.phone ?? null);
+    setVal("document-type", profile?.documentType ?? null);
+    setVal("document-number", profile?.documentNumber ?? null);
+
+    const form = document.getElementById("form") as HTMLFormElement | null;
+    const btnSave = document.getElementById("btn-save") as HTMLButtonElement | null;
+    const errorEl = document.getElementById("form-error");
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hide("form-error");
+      hide("form-success");
+
+      if (btnSave) {
+        btnSave.disabled = true;
+        btnSave.textContent = "Guardando...";
+      }
+
+      const error = await savePersonalData({
+        firstName: val("first-name").trim(),
+        lastName: val("last-name").trim(),
+        email: val("email").trim(),
+        phone: val("phone").trim(),
+        documentType: val("document-type"),
+        documentNumber: val("document-number").trim(),
+      });
+
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.textContent = "Guardar perfil";
+      }
+
+      if (error) {
+        if (errorEl) {
+          errorEl.textContent = error;
+          show("form-error");
+        }
+        return;
+      }
+
+      if (emailSummaryEl) emailSummaryEl.textContent = val("email").trim();
+      show("form-success");
+    });
+
+    document.getElementById("btn-delete")?.addEventListener("click", async () => {
+      const sure = window.confirm(
+        "¿Seguro que quieres eliminar tus datos personales (nombres, apellidos, email, celular y documento)? Tu Trade URL no se toca."
+      );
+      if (!sure) return;
+
+      hide("form-error");
+      hide("form-success");
+
+      const error = await deletePersonalData();
+      if (error) {
+        if (errorEl) {
+          errorEl.textContent = error;
+          show("form-error");
+        }
+        return;
+      }
+
+      setVal("first-name", "");
+      setVal("last-name", "");
+      setVal("email", "");
+      setVal("phone", "");
+      setVal("document-type", "");
+      setVal("document-number", "");
+      if (emailSummaryEl) emailSummaryEl.textContent = "";
+      show("form-success");
+    });
+
+    hide("state-loading");
+    show("state-content");
+  }
+
+  main();
+</script>

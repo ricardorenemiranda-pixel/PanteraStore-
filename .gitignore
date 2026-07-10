@@ -1,0 +1,29 @@
+# --- .NET (SteamMarket-backend) ---
+bin/
+obj/
+*.db
+*.db-shm
+*.db-wal
+*.user
+
+# Nunca guardar secretos reales aca (usamos dotnet user-secrets, que vive fuera del repo,
+# pero por las dudas si alguien llega a crear estos archivos a mano):
+**/secrets.json
+*.maFile
+maFiles/
+
+# --- Astro / Node (SteamMarket-frontend) ---
+node_modules/
+dist/
+.astro/
+npm-debug.log*
+.env
+.env.production
+
+# --- Editor / OS ---
+.vs/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

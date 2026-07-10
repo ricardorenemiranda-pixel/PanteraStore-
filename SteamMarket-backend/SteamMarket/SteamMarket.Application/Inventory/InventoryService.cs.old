@@ -1,0 +1,61 @@
+using SteamMarket.Application.Common.Interfaces;
+using SteamMarket.Application.Pricing;
+
+namespace SteamMarket.Application.Inventory;
+
+/// <summary>
+/// Caso de uso: obtener el inventario de Dota de un usuario y cotizarlo.
+/// 1) Trae los items desde Steam (ISteamInventoryClient).
+/// 2) Pide precios de referencia en batch (IMarketPriceProvider), solo para items marketable.
+/// 3) Aplica la regla de negocio de payout en cada InventoryItem (ApplyPricing, en el dominio).
+/// </summary>
+public sealed class InventoryService
+{
+    private readonly ISteamInventoryClient _inventoryClient;
+    private readonly IMarketPriceProvider _priceProvider;
+    private readonly PricingOptions _pricing;
+
+    public InventoryService(
+        ISteamInventoryClient inventoryClient,
+        IMarketPriceProvider priceProvider,
+        PricingOptions pricing)
+    {
+        _inventoryClient = inventoryClient;
+        _priceProvider = priceProvider;
+        _pricing = pricing;
+    }
+
+    public async Task<InventoryResponse> GetDotaInventoryAsync(string steamId64, CancellationToken ct = default)
+    {
+        var result = await _inventoryClient.GetDotaInventoryAsync(steamId64, ct);
+
+        if (!result.Success)
+            return InventoryResponse.Fail(result.Error ?? "No se pudo obtener el inventario.");
+
+        var items = result.Items.ToList();
+
+        // Solo tiene sentido cotizar items marketable, y solo una vez por nombre (deduplicado).
+        var namesToPrice = items
+            .Where(i => i.Marketable && !string.IsNullOrWhiteSpace(i.MarketHashName))
+            .Select(i => i.MarketHashName)
+            .Distinct()
+            .ToList();
+
+        var prices = namesToPrice.Count > 0
+            ? await _priceProvider.GetPricesAsync(namesToPrice, ct)
+            : new Dictionary<string, MarketPriceResult>();
+
+        foreach (var item in items)
+        {
+            if (prices.TryGetValue(item.MarketHashName, out var quote) && quote is { Success: true, Price: not null })
+            {
+                item.ApplyPricing(quote.Price.Value, _pricing.Margin);
+            }
+            // Si no hay cotizacion (no marketable, sin listings, o Steam limito las peticiones),
+            // el item se devuelve sin MarketPrice/PayoutPrice (null) y el frontend lo marca como "sin cotizar".
+        }
+
+        var dtos = items.Select(InventoryItemDto.FromDomain).ToList();
+        return InventoryResponse.Ok(dtos);
+    }
+}

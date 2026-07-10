@@ -1,0 +1,137 @@
+---
+import "../styles/global.css";
+import { loginUrl } from "../lib/api";
+
+interface Props {
+  title: string;
+  wide?: boolean;
+}
+
+const { title, wide = false } = Astro.props;
+const loginHref = loginUrl(new URL("/inventario", Astro.site ?? Astro.url.origin).toString());
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>{title} · SteamMarket</title>
+  </head>
+  <body class="min-h-screen bg-dota-bg text-neutral-100 antialiased">
+    <header class="border-b border-dota-border bg-dota-panel/60 backdrop-blur">
+      <div class={`mx-auto flex items-center justify-between px-6 py-4 ${wide ? "max-w-[1600px]" : "max-w-5xl"}`}>
+        <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+          <span class="text-dota-gold">Steam</span><span>Market</span>
+        </a>
+
+        <nav class="flex items-center gap-4 text-sm">
+          <a
+            id="nav-login"
+            href={loginHref}
+            class="hidden rounded-md bg-dota-red px-4 py-2 font-medium text-white transition hover:brightness-110"
+          >
+            Iniciar sesión con Steam
+          </a>
+
+          <div id="nav-user" class="hidden items-center gap-4">
+            <a href="/inventario" class="text-neutral-300 hover:text-white">Mi inventario</a>
+            <a href="/billetera" class="text-neutral-300 hover:text-white">Billetera</a>
+            <a id="nav-admin-link" href="/admin" class="hidden text-dota-gold hover:text-white">Admin</a>
+
+            <div class="relative">
+              <button
+                id="nav-user-trigger"
+                class="flex items-center gap-2 rounded-md border border-dota-border px-3 py-1.5 text-neutral-300 transition hover:border-dota-gold/50 hover:text-white"
+              >
+                <span
+                  id="nav-user-avatar"
+                  class="flex h-6 w-6 items-center justify-center rounded-full bg-dota-gold/20 text-xs font-semibold text-dota-gold"
+                ></span>
+                <span id="nav-user-name"></span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-neutral-500">
+                  <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+
+              <div
+                id="nav-user-menu"
+                class="absolute right-0 top-full z-50 mt-2 hidden w-48 rounded-lg border border-dota-border bg-dota-panel py-1 shadow-lg"
+              >
+                <a href="/perfil" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Perfil</a>
+                <a href="/seguridad" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Seguridad</a>
+                <a href="/cambiar-clave" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Cambiar clave</a>
+                <a href="/trade-url" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Trade URL</a>
+                <hr class="my-1 border-dota-border" />
+                <button
+                  id="nav-logout"
+                  class="block w-full px-4 py-2 text-left text-neutral-300 transition hover:bg-dota-red/10 hover:text-dota-red"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main class={`mx-auto px-6 py-10 ${wide ? "max-w-[1600px]" : "max-w-5xl"}`}>
+      <slot />
+    </main>
+
+    <script>
+      import { getMe, logout, loginUrl } from "../lib/api";
+
+      async function syncAuthUi() {
+        const me = await getMe();
+
+        const loginLink = document.getElementById("nav-login") as HTMLAnchorElement | null;
+        const userBox = document.getElementById("nav-user");
+        const userName = document.getElementById("nav-user-name");
+        const userAvatar = document.getElementById("nav-user-avatar");
+        const adminLink = document.getElementById("nav-admin-link");
+
+        if (me.authenticated) {
+          loginLink?.classList.add("hidden");
+          userBox?.classList.remove("hidden");
+          userBox?.classList.add("flex");
+          const name = me.name ?? "Jugador";
+          if (userName) userName.textContent = name;
+          if (userAvatar) userAvatar.textContent = name.trim().charAt(0).toUpperCase() || "?";
+          adminLink?.classList.toggle("hidden", !me.isAdmin);
+        } else {
+          if (loginLink) {
+            loginLink.href = loginUrl(new URL("/inventario", window.location.origin).toString());
+          }
+          loginLink?.classList.remove("hidden");
+          userBox?.classList.add("hidden");
+          userBox?.classList.remove("flex");
+        }
+      }
+
+      // Dropdown del menu de usuario: se abre/cierra con el boton, se cierra al hacer click afuera.
+      const menuTrigger = document.getElementById("nav-user-trigger");
+      const menu = document.getElementById("nav-user-menu");
+
+      menuTrigger?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        menu?.classList.toggle("hidden");
+      });
+
+      document.addEventListener("click", (e) => {
+        if (menu && !menu.classList.contains("hidden") && !menu.contains(e.target as Node) && e.target !== menuTrigger) {
+          menu.classList.add("hidden");
+        }
+      });
+
+      document.getElementById("nav-logout")?.addEventListener("click", async () => {
+        await logout();
+        window.location.href = "/";
+      });
+
+      syncAuthUi();
+    </script>
+  </body>
+</html>

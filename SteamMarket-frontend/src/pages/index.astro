@@ -1,0 +1,63 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { loginUrl } from "../lib/api";
+
+const loginHref = loginUrl(new URL("/inventario", Astro.site ?? Astro.url.origin).toString());
+---
+
+<Layout title="Inicio">
+  <section class="flex flex-col items-center gap-6 py-16 text-center">
+    <span
+      class="rounded-full border border-dota-border bg-dota-panel px-4 py-1 text-xs uppercase tracking-widest text-dota-gold"
+    >
+      Marketplace de items de Dota 2
+    </span>
+
+    <h1 class="max-w-2xl text-4xl font-bold tracking-tight sm:text-5xl">
+      Vende tus items de <span class="text-dota-gold">Dota 2</span> al instante
+    </h1>
+
+    <p class="max-w-xl text-neutral-400">
+      Inicia sesión con tu cuenta de Steam, cargamos tu inventario de Dota
+      automáticamente y te mostramos cuánto te pagamos por cada item, según el
+      precio actual del mercado.
+    </p>
+
+    <div class="mt-4 flex flex-col items-center gap-3">
+      <a
+        id="login-cta"
+        href={loginHref}
+        class="rounded-md bg-dota-red px-6 py-3 font-semibold text-white shadow-lg shadow-dota-red/20 transition hover:brightness-110"
+      >
+        Iniciar sesión con Steam
+      </a>
+      <p class="text-xs text-neutral-500">
+        Tu inventario de Dota debe estar público para poder cotizarlo.
+      </p>
+    </div>
+
+    <div id="already-logged" class="hidden mt-2 text-sm text-neutral-400">
+      Ya iniciaste sesión —
+      <a href="/inventario" class="text-dota-gold underline underline-offset-2">ir a tu inventario</a>
+    </div>
+  </section>
+
+  <script>
+    import { getMe, loginUrl } from "../lib/api";
+
+    async function checkSession() {
+      const me = await getMe();
+      const cta = document.getElementById("login-cta");
+      const alreadyLogged = document.getElementById("already-logged");
+
+      if (me.authenticated) {
+        cta?.classList.add("hidden");
+        alreadyLogged?.classList.remove("hidden");
+      } else if (cta instanceof HTMLAnchorElement) {
+        cta.href = loginUrl(new URL("/inventario", window.location.origin).toString());
+      }
+    }
+
+    checkSession();
+  </script>
+</Layout>

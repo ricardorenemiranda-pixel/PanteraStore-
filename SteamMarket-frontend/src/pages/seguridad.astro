@@ -1,0 +1,71 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Seguridad">
+  <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
+
+  <div id="state-content" class="hidden mx-auto max-w-lg">
+    <h1 class="mb-6 text-2xl font-semibold">Seguridad</h1>
+
+    <div class="rounded-lg border border-dota-border bg-dota-panel p-4">
+      <p class="flex items-center gap-2 text-sm font-medium text-neutral-100">
+        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+        Inicio de sesión con Steam
+      </p>
+      <p class="mt-2 text-sm text-neutral-400">
+        Tu cuenta no usa contraseña propia: entras siempre con tu cuenta de Steam
+        (OpenID). Nosotros nunca vemos ni guardamos tu contraseña de Steam.
+      </p>
+    </div>
+
+    <div class="mt-4 rounded-lg border border-dota-border bg-dota-panel p-4">
+      <p class="text-sm font-medium text-neutral-100">Sesión activa</p>
+      <p id="session-info" class="mt-1 text-sm text-neutral-400"></p>
+      <button
+        id="btn-logout"
+        class="mt-3 rounded-md border border-dota-border px-3 py-1.5 text-sm text-neutral-300 transition hover:border-dota-red hover:text-white"
+      >
+        Cerrar esta sesión
+      </button>
+    </div>
+
+    <p class="mt-4 text-xs text-neutral-500">
+      Recomendación: activa el Autenticador de Steam Guard en tu cuenta de Steam
+      (no en este sitio) para proteger tus items de una forma mucho más efectiva
+      que cualquier contraseña local.
+    </p>
+  </div>
+</Layout>
+
+<script>
+  import { getMe, logout } from "../lib/api";
+
+  function show(id: string) {
+    document.getElementById(id)?.classList.remove("hidden");
+  }
+  function hide(id: string) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+
+  async function main() {
+    const me = await getMe();
+    if (!me.authenticated) {
+      window.location.href = "/";
+      return;
+    }
+
+    const info = document.getElementById("session-info");
+    if (info) info.textContent = `Conectado como ${me.name ?? "Jugador"} (SteamID ${me.steamId ?? ""}).`;
+
+    document.getElementById("btn-logout")?.addEventListener("click", async () => {
+      await logout();
+      window.location.href = "/";
+    });
+
+    hide("state-loading");
+    show("state-content");
+  }
+
+  main();
+</script>

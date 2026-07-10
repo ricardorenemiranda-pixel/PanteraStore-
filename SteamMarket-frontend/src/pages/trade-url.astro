@@ -1,0 +1,113 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Trade URL">
+  <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
+
+  <div id="state-content" class="hidden mx-auto max-w-lg">
+    <h1 class="mb-2 text-2xl font-semibold">Trade URL</h1>
+    <p class="mb-6 text-sm text-neutral-400">
+      La necesitamos para poder mandarte la oferta de intercambio cuando vendas un
+      item, sin tener que agregarte como amigo en Steam.
+    </p>
+
+    <form id="form" class="rounded-lg border border-dota-border bg-dota-panel p-4">
+      <label for="trade-url" class="mb-1 block text-sm font-medium text-neutral-200">Tu Trade URL</label>
+      <input
+        id="trade-url"
+        type="text"
+        placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..."
+        class="w-full rounded border border-dota-border bg-dota-bg px-3 py-2 text-sm text-neutral-200 placeholder:text-neutral-600 focus:border-dota-gold/50 focus:outline-none"
+      />
+      <p id="form-error" class="mt-2 hidden text-sm text-dota-red"></p>
+      <p id="form-success" class="mt-2 hidden text-sm text-emerald-500">Guardada correctamente.</p>
+
+      <button
+        id="btn-save"
+        type="submit"
+        class="mt-3 rounded-md bg-dota-red px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Guardar
+      </button>
+    </form>
+
+    <details class="mt-4 text-sm text-neutral-400">
+      <summary class="cursor-pointer text-neutral-300">¿Dónde la encuentro?</summary>
+      <p class="mt-2">
+        Steam → tu perfil → Inventario → ícono de engranaje → "Ofertas de intercambio" →
+        copia la URL que dice "¿Quién puede enviarme ofertas de intercambio?".
+        También puedes verla directo en
+        <a
+          href="https://steamcommunity.com/my/tradeoffers/privacy"
+          target="_blank"
+          rel="noopener"
+          class="text-dota-gold underline underline-offset-2"
+        >
+          steamcommunity.com/my/tradeoffers/privacy
+        </a>.
+      </p>
+    </details>
+  </div>
+</Layout>
+
+<script>
+  import { getMe, getProfile, updateTradeUrl } from "../lib/api";
+
+  function show(id: string) {
+    document.getElementById(id)?.classList.remove("hidden");
+  }
+  function hide(id: string) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+
+  async function main() {
+    const me = await getMe();
+    if (!me.authenticated) {
+      window.location.href = "/";
+      return;
+    }
+
+    const input = document.getElementById("trade-url") as HTMLInputElement | null;
+    const form = document.getElementById("form") as HTMLFormElement | null;
+    const errorEl = document.getElementById("form-error");
+    const successEl = document.getElementById("form-success");
+    const btn = document.getElementById("btn-save") as HTMLButtonElement | null;
+
+    const profile = await getProfile();
+    if (input && profile?.tradeUrl) input.value = profile.tradeUrl;
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hide("form-error");
+      hide("form-success");
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Guardando...";
+      }
+
+      const error = await updateTradeUrl(input?.value.trim() ?? "");
+
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Guardar";
+      }
+
+      if (error) {
+        if (errorEl) {
+          errorEl.textContent = error;
+          show("form-error");
+        }
+        return;
+      }
+
+      show("form-success");
+    });
+
+    hide("state-loading");
+    show("state-content");
+  }
+
+  main();
+</script>

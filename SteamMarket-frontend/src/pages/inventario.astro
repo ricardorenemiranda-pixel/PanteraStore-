@@ -1,0 +1,581 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Mi inventario" wide>
+  <div id="state-loading" class="py-20 text-center text-neutral-400">
+    Cargando tu inventario de Dota 2...
+  </div>
+
+  <div id="state-redirect" class="hidden py-20 text-center text-neutral-400">
+    Necesitas iniciar sesión con Steam. Redirigiendo...
+  </div>
+
+  <div id="state-error" class="hidden rounded-lg border border-dota-red/50 bg-dota-red/10 p-6 text-center">
+    <p id="state-error-message" class="text-neutral-200"></p>
+  </div>
+
+  <div id="state-empty" class="hidden py-20 text-center text-neutral-400">
+    No encontramos Inmortales, Arcanas ni Mythicals intercambiables en tu inventario.
+  </div>
+
+  <div id="state-content" class="hidden">
+    <div class="mb-3 flex items-center justify-between text-xs text-neutral-500">
+      <span id="last-updated"></span>
+      <button
+        id="btn-refresh"
+        class="rounded border border-dota-gold/40 bg-dota-gold/10 px-3 py-1 text-xs font-medium text-dota-gold transition hover:bg-dota-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        Actualizar
+      </button>
+    </div>
+
+    <div class="mb-4 flex flex-wrap gap-2 rounded-lg border border-dota-border bg-dota-panel p-3">
+      <input
+        id="filter-search"
+        type="text"
+        placeholder="Buscar por nombre"
+        class="min-w-[180px] flex-1 rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 focus:border-dota-gold/50 focus:outline-none"
+      />
+      <select
+        id="filter-hero"
+        class="rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+      >
+        <option value="">Héroe (todos)</option>
+      </select>
+      <select
+        id="filter-tipo"
+        class="rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+      >
+        <option value="">Tipo (todos)</option>
+      </select>
+      <select
+        id="filter-sort"
+        class="rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+      >
+        <option value="">Orden (por defecto)</option>
+        <option value="price-desc">Precio: más caros primero</option>
+        <option value="price-asc">Precio: más baratos primero</option>
+      </select>
+    </div>
+
+    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      <section class="min-w-0">
+        <div class="mb-2 flex items-center justify-between">
+          <h2 class="font-semibold text-neutral-200">Tu inventario</h2>
+          <span id="inventory-count" class="text-xs text-neutral-500"></span>
+        </div>
+        <div
+          id="inventory-grid"
+          class="grid max-h-[75vh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4"
+        ></div>
+      </section>
+
+      <section class="min-w-0">
+        <div
+          class="mb-2 flex items-center justify-between rounded-lg border border-dota-gold/40 bg-dota-gold/10 px-3 py-2"
+        >
+          <h2 class="font-semibold text-dota-gold">A vender</h2>
+          <span id="cart-total" class="text-lg font-semibold text-dota-gold">S/ 0.00</span>
+        </div>
+        <div
+          id="cart-grid"
+          class="grid max-h-[75vh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4"
+        ></div>
+        <p id="cart-empty-hint" class="mt-3 text-center text-xs text-neutral-500">
+          Haz click en un item de tu inventario para agregarlo acá.
+        </p>
+
+        <button
+          id="btn-confirm-sale"
+          class="mt-3 hidden w-full rounded-md bg-dota-red px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Confirmar venta
+        </button>
+        <p id="sale-error" class="mt-2 hidden text-center text-sm text-dota-red"></p>
+
+        <div id="sale-success" class="mt-3 hidden rounded-lg border border-dota-gold/40 bg-dota-gold/10 p-3 text-sm">
+          <div id="sale-success-bot">
+            <p class="font-medium text-dota-gold">¡Venta confirmada! Te mandamos la oferta a Steam.</p>
+            <p class="mt-1 text-neutral-300">
+              Abre Steam (o la app móvil) y acepta la oferta de intercambio que te llegó — no
+              tienes que armar nada, ya viene con los items exactos.
+            </p>
+            <p class="mt-2 text-xs text-neutral-500">
+              Tu saldo se acredita solo apenas la aceptes. Puedes revisar el estado en tu
+              <a href="/billetera" class="text-dota-gold underline underline-offset-2">billetera</a>.
+            </p>
+          </div>
+          <div id="sale-success-manual" class="hidden">
+            <p class="font-medium text-dota-gold">¡Venta confirmada! Orden pendiente.</p>
+            <p id="sale-bot-error" class="mt-1 hidden text-xs text-neutral-500"></p>
+            <p class="mt-1 text-neutral-300">
+              Manda tus items por trade a nuestra cuenta para que se procese:
+            </p>
+            <a
+              id="sale-trade-link"
+              href="#"
+              target="_blank"
+              rel="noopener"
+              class="mt-2 inline-block rounded-md bg-dota-gold px-3 py-1.5 text-xs font-semibold text-black transition hover:brightness-110"
+            >
+              Abrir Trade URL
+            </a>
+            <p class="mt-2 text-xs text-neutral-500">
+              Tu saldo se acredita apenas confirmemos que recibimos el trade. Puedes revisar el
+              estado en tu <a href="/billetera" class="text-dota-gold underline underline-offset-2">billetera</a>.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { getMe, getDotaInventory, createSellOrder, type InventoryItemDto } from "../lib/api";
+
+  const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+
+  function show(id: string) {
+    document.getElementById(id)?.classList.remove("hidden");
+  }
+  function hide(id: string) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+
+  // Solo nos interesan estas categorias (lo que el usuario pidio: inmortales, arcanas, mythicals).
+  const RARITIES_SHOWN = new Set(["Immortal", "Mythical"]);
+
+  /** "Tipo" que se muestra y por el que se filtra: Arcana es Quality, el resto es Rarity. */
+  function displayRarity(item: InventoryItemDto): string | null {
+    return item.quality === "Arcana" ? "Arcana" : item.rarity;
+  }
+
+  // Colores fijos por categoria (los mismos que usa Valve/Steam para cada rareza), no dependemos
+  // del RarityColor que manda Steam en las tags porque queremos siempre estos 3 exactos.
+  const RARITY_COLORS: Record<string, string> = {
+    Immortal: "#E4AE39", // dorado
+    Arcana: "#ADE55C", // verde
+    Mythical: "#8847FF", // morado
+  };
+
+  // Categorias/palabras que no queremos mostrar/vender aunque sean Immortal/Mythical/Arcana:
+  // - "loading screen": ej. "Oaths of the Beloved Loading Screen" es Immortal pero es pantalla de carga.
+  // Los cofres/tesoros SIN ABRIR ("treasure"/"chest"/"cache") SI se muestran: un cofre cerrado
+  // vale mas que sus piezas por separado, asi que no se excluyen.
+  const EXCLUDED_TYPES = ["loading screen"];
+
+  // Precio minimo de pago para mostrar un item. Piezas sueltas de un set (ej. "Oaths of the
+  // Beloved - Legs/Misc/Belt/Armor/Head/Ghosts") son items reales, no cofres, pero a veces valen
+  // centavos por separado y no conviene comprarlas como negocio. Ajusta este numero segun lo que
+  // definas como piso de compra.
+  const MIN_PAYOUT_PRICE = 0.5;
+
+  function isValuable(item: InventoryItemDto): boolean {
+    if (!item.tradable) return false; // solo items que se pueden intercambiar (vender).
+
+    const type = item.type?.toLowerCase() ?? "";
+    const name = item.name?.toLowerCase() ?? "";
+    if (EXCLUDED_TYPES.some((excluded) => type.includes(excluded) || name.includes(excluded))) return false;
+
+    // Si ya tiene precio y es menor al minimo, no se muestra. Si todavia no tiene precio
+    // (payoutPrice null, "sin cotizar"), lo dejamos pasar por ahora: se re-evalua solo en el
+    // siguiente sondeo/carga una vez que llegue su cotizacion real.
+    if (item.payoutPrice != null && item.payoutPrice < MIN_PAYOUT_PRICE) return false;
+
+    return (!!item.rarity && RARITIES_SHOWN.has(item.rarity)) || item.quality === "Arcana";
+  }
+
+  // --- Estado ---
+  let pool: InventoryItemDto[] = []; // items validos: tradeable + rareza pedida.
+  const selected = new Set<string>(); // assetId de los items puestos "a vender".
+
+  let search = "";
+  let heroFilter = "";
+  let tipoFilter = "";
+  let sortOrder: "" | "price-desc" | "price-asc" = "";
+
+  function passesFilters(item: InventoryItemDto): boolean {
+    if (search && !item.name.toLowerCase().includes(search)) return false;
+    if (heroFilter && item.hero !== heroFilter) return false;
+    if (tipoFilter && displayRarity(item) !== tipoFilter) return false;
+    return true;
+  }
+
+  function priceOf(item: InventoryItemDto): number {
+    return item.payoutPrice ?? 0;
+  }
+
+  /**
+   * Ordena por precio de nuestra web (payoutPrice). Los items "sin cotizar" (null) siempre
+   * quedan al final, sin importar el orden elegido, porque no hay un precio real que comparar.
+   */
+  function sortByPrice(items: InventoryItemDto[], order: "price-desc" | "price-asc") {
+    items.sort((a, b) => {
+      if (a.payoutPrice == null && b.payoutPrice == null) return 0;
+      if (a.payoutPrice == null) return 1;
+      if (b.payoutPrice == null) return -1;
+      return order === "price-desc" ? b.payoutPrice - a.payoutPrice : a.payoutPrice - b.payoutPrice;
+    });
+  }
+
+  function renderCard(item: InventoryItemDto): HTMLElement {
+    const card = document.createElement("article");
+    card.className =
+      "flex h-full cursor-pointer flex-col gap-1.5 rounded-lg border border-dota-border bg-dota-panel p-2 transition hover:border-dota-gold/50";
+
+    // Siempre reservamos el mismo espacio para la imagen (haya o no iconUrl), asi todas las
+    // tarjetas miden lo mismo aunque a un item le falte el icono.
+    if (item.iconUrl) {
+      const img = document.createElement("img");
+      img.src = item.iconUrl;
+      img.alt = item.name;
+      img.loading = "lazy";
+      img.className = "aspect-square w-full object-contain";
+      card.appendChild(img);
+    } else {
+      const placeholder = document.createElement("div");
+      placeholder.className = "aspect-square w-full rounded bg-dota-bg";
+      card.appendChild(placeholder);
+    }
+
+    const tipo = displayRarity(item);
+    if (tipo) {
+      const badge = document.createElement("p");
+      badge.textContent = tipo;
+      badge.className = "text-center text-xs font-bold uppercase tracking-wide";
+      badge.style.color = RARITY_COLORS[tipo] ?? "#ffffff";
+      card.appendChild(badge);
+    }
+
+    const name = document.createElement("h3");
+    name.textContent = item.name;
+    // min-h reserva el alto de 2 lineas siempre (line-clamp-2 recorta, pero un nombre de 1 sola
+    // linea no encogia la tarjeta antes); flex+items-center centra el texto cuando es 1 linea.
+    name.className =
+      "flex min-h-[2.5rem] items-center justify-center line-clamp-2 text-center text-sm font-medium text-neutral-100";
+    card.appendChild(name);
+
+    const priceEl = document.createElement("p");
+    if (item.payoutPrice != null) {
+      priceEl.textContent = soles.format(item.payoutPrice);
+      priceEl.className =
+        "mt-1 rounded bg-green-600 px-2 py-1 text-center text-sm font-bold text-white";
+    } else {
+      priceEl.textContent = "Sin cotizar";
+      priceEl.className = "mt-1 text-center text-sm font-semibold text-neutral-500";
+    }
+    card.appendChild(priceEl);
+
+    card.addEventListener("click", () => {
+      if (selected.has(item.assetId)) selected.delete(item.assetId);
+      else selected.add(item.assetId);
+      hide("sale-error");
+      hide("sale-success");
+      render();
+    });
+
+    return card;
+  }
+
+  // Lista completa de heroes de Dota 2, fija (no depende de lo que tengas en el inventario,
+  // igual que en GiorDota: el filtro siempre muestra todos los heroes posibles).
+  const ALL_HEROES = [
+    "Abaddon", "Alchemist", "Ancient Apparition", "Anti-Mage", "Arc Warden", "Axe", "Bane",
+    "Batrider", "Beastmaster", "Bloodseeker", "Bounty Hunter", "Brewmaster", "Bristleback",
+    "Broodmother", "Centaur Warrunner", "Chaos Knight", "Chen", "Clinkz", "Clockwerk",
+    "Crystal Maiden", "Dark Seer", "Dark Willow", "Dawnbreaker", "Dazzle", "Death Prophet",
+    "Disruptor", "Doom", "Dragon Knight", "Drow Ranger", "Earth Spirit", "Earthshaker",
+    "Elder Titan", "Ember Spirit", "Enchantress", "Enigma", "Faceless Void", "Grimstroke",
+    "Gyrocopter", "Hoodwink", "Huskar", "Invoker", "Io", "Jakiro", "Juggernaut",
+    "Keeper of the Light", "Kez", "Kunkka", "Legion Commander", "Leshrac", "Lich",
+    "Lifestealer", "Lina", "Lion", "Lone Druid", "Luna", "Lycan", "Magnus", "Marci", "Mars",
+    "Medusa", "Meepo", "Mirana", "Monkey King", "Morphling", "Muerta", "Naga Siren",
+    "Nature's Prophet", "Necrophos", "Night Stalker", "Nyx Assassin", "Ogre Magi",
+    "Omniknight", "Oracle", "Outworld Destroyer", "Pangolier", "Phantom Assassin",
+    "Phantom Lancer", "Phoenix", "Primal Beast", "Puck", "Pudge", "Pugna", "Queen of Pain",
+    "Razor", "Riki", "Ringmaster", "Rubick", "Sand King", "Shadow Demon", "Shadow Fiend",
+    "Shadow Shaman", "Silencer", "Skywrath Mage", "Slardar", "Slark", "Snapfire", "Sniper",
+    "Spectre", "Spirit Breaker", "Storm Spirit", "Sven", "Techies", "Templar Assassin",
+    "Terrorblade", "Tidehunter", "Timbersaw", "Tinker", "Tiny", "Treant Protector",
+    "Troll Warlord", "Tusk", "Underlord", "Undying", "Ursa", "Vengeful Spirit", "Venomancer",
+    "Viper", "Visage", "Void Spirit", "Warlock", "Weaver", "Windranger", "Winter Wyvern",
+    "Witch Doctor", "Wraith King", "Zeus"
+  ];
+
+  function populateFilters() {
+    const heroSelect = document.getElementById("filter-hero") as HTMLSelectElement | null;
+    const tipoSelect = document.getElementById("filter-tipo") as HTMLSelectElement | null;
+    if (!heroSelect || !tipoSelect) return;
+
+    for (const hero of ALL_HEROES) {
+      const opt = document.createElement("option");
+      opt.value = hero;
+      opt.textContent = hero;
+      heroSelect.appendChild(opt);
+    }
+
+    // Fija, igual que ALL_HEROES: siempre las 3 categorias, no solo las que tengas ahora mismo.
+    const tipos = ["Immortal", "Mythical", "Arcana"];
+    for (const tipo of tipos) {
+      const opt = document.createElement("option");
+      opt.value = tipo;
+      opt.textContent = tipo;
+      tipoSelect.appendChild(opt);
+    }
+  }
+
+  // Mismo minimo que el backend (Pricing:MinSaleAmount). Es solo una pista visual: la
+  // validacion real (la que importa) la hace el servidor al confirmar la venta.
+  const MIN_SALE_AMOUNT = 5;
+
+  function render() {
+    const inventoryGrid = document.getElementById("inventory-grid");
+    const cartGrid = document.getElementById("cart-grid");
+    const inventoryCount = document.getElementById("inventory-count");
+    const cartTotal = document.getElementById("cart-total");
+    const cartHint = document.getElementById("cart-empty-hint");
+    const btnConfirmSale = document.getElementById("btn-confirm-sale") as HTMLButtonElement | null;
+    if (!inventoryGrid || !cartGrid || !inventoryCount || !cartTotal || !cartHint || !btnConfirmSale) return;
+
+    inventoryGrid.innerHTML = "";
+    cartGrid.innerHTML = "";
+
+    const visible = pool.filter((i) => !selected.has(i.assetId) && passesFilters(i));
+    const inCart = pool.filter((i) => selected.has(i.assetId));
+
+    if (sortOrder) sortByPrice(visible, sortOrder);
+
+    inventoryCount.textContent = `${visible.length} de ${pool.length} items`;
+
+    for (const item of visible) inventoryGrid.appendChild(renderCard(item));
+    for (const item of inCart) cartGrid.appendChild(renderCard(item));
+
+    const total = inCart.reduce((sum, i) => sum + priceOf(i), 0);
+    cartTotal.textContent = soles.format(total);
+    cartHint.classList.toggle("hidden", inCart.length > 0);
+
+    if (inCart.length === 0) {
+      btnConfirmSale.classList.add("hidden");
+    } else {
+      btnConfirmSale.classList.remove("hidden");
+      btnConfirmSale.disabled = total < MIN_SALE_AMOUNT;
+      btnConfirmSale.textContent =
+        total < MIN_SALE_AMOUNT ? `Mínimo S/ ${MIN_SALE_AMOUNT.toFixed(2)} para vender` : "Confirmar venta";
+    }
+  }
+
+  let fetchedAtUtc: string | null = null;
+  let filtersPopulated = false;
+
+  function updateLastUpdatedLabel() {
+    const el = document.getElementById("last-updated");
+    if (!el) return;
+    if (!fetchedAtUtc) {
+      el.textContent = "";
+      return;
+    }
+    const minutes = Math.max(0, Math.round((Date.now() - new Date(fetchedAtUtc).getTime()) / 60000));
+    el.textContent = minutes === 0 ? "Actualizado hace instantes" : `Actualizado hace ${minutes} min`;
+  }
+
+  // Sondeo automatico: mientras queden items sin cotizar, revisamos solos cada 15s (sin que
+  // el usuario tenga que apretar nada ni recargar) para que los precios que va completando el
+  // warmup en segundo plano (backend) aparezcan solos en pantalla. Se apaga solo cuando ya no
+  // falta nada, o despues de un rato largo para no sondear para siempre.
+  const PRICE_POLL_INTERVAL_MS = 15000;
+  const PRICE_POLL_MAX_ATTEMPTS = 20; // ~5 minutos
+  let pricePollTimer: ReturnType<typeof setInterval> | null = null;
+  let pricePollAttempts = 0;
+
+  function stopPricePoll() {
+    if (pricePollTimer) {
+      clearInterval(pricePollTimer);
+      pricePollTimer = null;
+    }
+  }
+
+  function maybeSchedulePricePoll() {
+    const stillMissing = pool.some((i) => i.payoutPrice == null);
+
+    if (!stillMissing) {
+      stopPricePoll();
+      return;
+    }
+
+    if (pricePollTimer) return; // ya esta corriendo
+
+    pricePollAttempts = 0;
+    pricePollTimer = setInterval(() => {
+      pricePollAttempts++;
+      if (pricePollAttempts > PRICE_POLL_MAX_ATTEMPTS) {
+        stopPricePoll();
+        return;
+      }
+      void loadInventory(false, { silent: true });
+    }, PRICE_POLL_INTERVAL_MS);
+  }
+
+  /**
+   * Carga (o recarga) el inventario. force=true fuerza un pedido en vivo a Steam
+   * (boton "Actualizar"); force=false usa el cache del backend si esta fresco.
+   * silent=true es para el sondeo automatico: no toca el boton, no reinicia el carrito de
+   * venta ("A vender"), y si algo falla no reemplaza lo que ya esta en pantalla.
+   */
+  async function loadInventory(force: boolean, options: { silent?: boolean } = {}) {
+    const silent = options.silent ?? false;
+    const btn = document.getElementById("btn-refresh") as HTMLButtonElement | null;
+
+    if (!silent && btn) {
+      btn.disabled = true;
+      btn.textContent = "Actualizando...";
+    }
+
+    const result = await getDotaInventory(force);
+
+    if (!silent && btn) {
+      btn.disabled = false;
+      btn.textContent = "Actualizar";
+    }
+
+    if (!result.success) {
+      if (silent) return;
+      hide("state-content");
+      hide("state-empty");
+      show("state-error");
+      const msg = document.getElementById("state-error-message");
+      if (msg) msg.textContent = result.error ?? "No se pudo cargar tu inventario.";
+      return;
+    }
+
+    fetchedAtUtc = result.fetchedAtUtc ?? null;
+    pool = result.items.filter(isValuable);
+
+    if (!silent) {
+      selected.clear();
+    } else {
+      // No reiniciamos el carrito en un sondeo silencioso; solo sacamos items que ya no existan.
+      const poolIds = new Set(pool.map((i) => i.assetId));
+      for (const id of Array.from(selected)) {
+        if (!poolIds.has(id)) selected.delete(id);
+      }
+    }
+
+    if (pool.length === 0) {
+      if (!silent) {
+        hide("state-content");
+        hide("state-error");
+        show("state-empty");
+      }
+      return;
+    }
+
+    if (!filtersPopulated) {
+      populateFilters();
+      filtersPopulated = true;
+    }
+
+    hide("state-empty");
+    hide("state-error");
+    updateLastUpdatedLabel();
+    render();
+    maybeSchedulePricePoll();
+    show("state-content");
+  }
+
+  async function main() {
+    const me = await getMe();
+    if (!me.authenticated) {
+      hide("state-loading");
+      show("state-redirect");
+      window.location.href = "/";
+      return;
+    }
+
+    await loadInventory(false);
+    hide("state-loading");
+
+    document.getElementById("btn-refresh")?.addEventListener("click", () => loadInventory(true));
+    document.getElementById("filter-search")?.addEventListener("input", (e) => {
+      search = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      render();
+    });
+    document.getElementById("filter-hero")?.addEventListener("change", (e) => {
+      heroFilter = (e.target as HTMLSelectElement).value;
+      render();
+    });
+    document.getElementById("filter-tipo")?.addEventListener("change", (e) => {
+      tipoFilter = (e.target as HTMLSelectElement).value;
+      render();
+    });
+    document.getElementById("filter-sort")?.addEventListener("change", (e) => {
+      sortOrder = (e.target as HTMLSelectElement).value as typeof sortOrder;
+      render();
+    });
+
+    document.getElementById("btn-confirm-sale")?.addEventListener("click", async () => {
+      const btn = document.getElementById("btn-confirm-sale") as HTMLButtonElement | null;
+      const assetIds = Array.from(selected);
+      if (assetIds.length === 0) return;
+
+      hide("sale-error");
+      hide("sale-success");
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Confirmando...";
+      }
+
+      const result = await createSellOrder(assetIds);
+
+      if (btn) btn.disabled = false;
+
+      if (!result.success || !result.order || !result.adminTradeUrl) {
+        const errorEl = document.getElementById("sale-error");
+        if (errorEl) {
+          errorEl.textContent = result.error ?? "No se pudo confirmar la venta.";
+          show("sale-error");
+        }
+        if (btn) btn.textContent = "Confirmar venta";
+        return;
+      }
+
+      const botBlock = document.getElementById("sale-success-bot");
+      const manualBlock = document.getElementById("sale-success-manual");
+
+      if (result.botOfferSent) {
+        botBlock?.classList.remove("hidden");
+        manualBlock?.classList.add("hidden");
+      } else {
+        botBlock?.classList.add("hidden");
+        manualBlock?.classList.remove("hidden");
+
+        const link = document.getElementById("sale-trade-link") as HTMLAnchorElement | null;
+        if (link) link.href = result.adminTradeUrl;
+
+        const botErrorEl = document.getElementById("sale-bot-error");
+        if (botErrorEl && result.botOfferError) {
+          botErrorEl.textContent = result.botOfferError;
+          botErrorEl.classList.remove("hidden");
+        } else {
+          botErrorEl?.classList.add("hidden");
+        }
+      }
+
+      show("sale-success");
+
+      // La orden ya quedo registrada en el backend con los items que SI se pudieron cotizar;
+      // limpiamos el carrito completo y recargamos en silencio para reflejar el inventario real.
+      selected.clear();
+      if (btn) {
+        btn.classList.add("hidden");
+        btn.textContent = "Confirmar venta";
+      }
+      render();
+      void loadInventory(false, { silent: true });
+    });
+  }
+
+  main();
+</script>
