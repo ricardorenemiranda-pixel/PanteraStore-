@@ -33,9 +33,20 @@ public static class DependencyInjection
             AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
         });
 
-        // Cache propia de precios (SQLite en dev). Connection string en appsettings -> ConnectionStrings:Default.
-        var connectionString = configuration.GetConnectionString("Default") ?? "Data Source=steammarket.db";
-        services.AddDbContext<SteamMarketDbContext>(options => options.UseSqlite(connectionString));
+        // Base de datos Postgres (Supabase por ahora, Railway cuando se despliegue -- mismo motor,
+        // asi que solo cambia el connection string, no el codigo). NUNCA va en appsettings.json:
+        // trae usuario/contrasena reales de la base. Se configura con:
+        //   dotnet user-secrets set "ConnectionStrings:Default" "Host=...;Database=...;Username=...;Password=...;SSL Mode=Require;Trust Server Certificate=true"
+        var connectionString = configuration.GetConnectionString("Default");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Falta ConnectionStrings:Default. Configuralo con " +
+                "'dotnet user-secrets set \"ConnectionStrings:Default\" \"<tu connection string de Supabase>\"' " +
+                "antes de correr la API.");
+        }
+
+        services.AddDbContext<SteamMarketDbContext>(options => options.UseNpgsql(connectionString));
 
         // HttpClient tipado para el proveedor de precios (Steam Market priceoverview).
         // Mismo motivo para AutomaticDecompression que arriba.

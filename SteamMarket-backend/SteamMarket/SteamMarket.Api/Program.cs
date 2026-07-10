@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using SteamMarket.Api.Middleware;
 using SteamMarket.Application;
@@ -27,6 +28,19 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 // --- Manejo global de errores (IExceptionHandler + ProblemDetails, RFC 7807) ---
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+
+// Render (y la mayoria de PaaS) terminan HTTPS en su propio proxy y le hablan a nuestro
+// contenedor por HTTP simple puertas adentro. Sin esto, la app cree que la conexion es HTTP:
+// rompe el login de Steam (el return_to que arma queda en http:// en vez de https://) y la
+// cookie con Secure=true (heredado de SameSite/HTTPS) no se manda. ClearAll() porque no
+// conocemos de antemano la IP del proxy de Render (no es una red fija como en un datacenter
+// propio) -- confiamos en el header porque el contenedor no es alcanzable directo desde afuera.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddCors(options =>
 {
@@ -92,6 +106,10 @@ using (var scope = app.Services.CreateScope())
         db.Database.Migrate();
     }
 }
+
+// Tiene que ir ANTES que cualquier otro middleware que dependa de saber si la conexion es
+// HTTPS o cual es la IP real del cliente (auth, HTTPS redirection, etc.).
+app.UseForwardedHeaders();
 
 // Debe ir lo mas temprano posible en el pipeline: atrapa excepciones de todo lo que viene despues.
 app.UseExceptionHandler();
