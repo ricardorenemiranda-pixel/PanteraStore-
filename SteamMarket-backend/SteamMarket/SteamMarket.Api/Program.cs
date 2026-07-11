@@ -35,9 +35,16 @@ builder.Services.AddProblemDetails();
 // cookie con Secure=true (heredado de SameSite/HTTPS) no se manda. ClearAll() porque no
 // conocemos de antemano la IP del proxy de Render (no es una red fija como en un datacenter
 // propio) -- confiamos en el header porque el contenedor no es alcanzable directo desde afuera.
+//
+// XForwardedHost tambien hace falta porque el frontend (Vercel) le hace un rewrite a /api/*
+// hacia este backend: sin esto, Request.Host queda en "panterastore-api.onrender.com" (el host
+// real que ve el contenedor) en vez de "panterastore-pi.vercel.app" (el dominio real por el que
+// entro el usuario), y el "return_to" que le mandamos a Steam apunta mal -- Steam redirige
+// derecho a Render saltandose Vercel, y la cookie de correlacion (guardada para el dominio de
+// Vercel) nunca llega, tirando "cookie not found" / "state parameter was invalid".
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
