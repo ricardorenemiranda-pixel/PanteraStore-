@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://panterastore-api.onrender.com/api/:path*"
+    },
+    {
+      "source": "/signin-steam",
+      "destination": "https://panterastore-api.onrender.com/signin-steam"
     }
   ]
 }
