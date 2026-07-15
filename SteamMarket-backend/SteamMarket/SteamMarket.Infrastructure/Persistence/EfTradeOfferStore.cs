@@ -17,7 +17,24 @@ public sealed class EfTradeOfferStore : ITradeOfferStore
         _db.TradeOffers.Add(new TradeOffer
         {
             Id = Guid.NewGuid(),
+            Kind = "SellOrder",
             SellOrderId = sellOrderId,
+            TradeOfferId = tradeOfferId,
+            SteamId64 = steamId64,
+            Status = (int)BotTradeOfferState.Active,
+            CreatedAtUtc = DateTime.UtcNow,
+        });
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task CreateForLootBoxRedeemAsync(Guid lootBoxWinId, ulong tradeOfferId, string steamId64, CancellationToken ct = default)
+    {
+        _db.TradeOffers.Add(new TradeOffer
+        {
+            Id = Guid.NewGuid(),
+            Kind = "LootBoxRedeem",
+            LootBoxWinId = lootBoxWinId,
             TradeOfferId = tradeOfferId,
             SteamId64 = steamId64,
             Status = (int)BotTradeOfferState.Active,
@@ -55,10 +72,18 @@ public sealed class EfTradeOfferStore : ITradeOfferStore
         return row is null ? null : ToRecord(row);
     }
 
+    public async Task<TradeOfferRecord?> GetByLootBoxWinIdAsync(Guid lootBoxWinId, CancellationToken ct = default)
+    {
+        var row = await _db.TradeOffers.FirstOrDefaultAsync(t => t.LootBoxWinId == lootBoxWinId, ct);
+        return row is null ? null : ToRecord(row);
+    }
+
     private static TradeOfferRecord ToRecord(TradeOffer t) => new()
     {
         Id = t.Id,
+        Kind = t.Kind,
         SellOrderId = t.SellOrderId,
+        LootBoxWinId = t.LootBoxWinId,
         TradeOfferId = t.TradeOfferId,
         SteamId64 = t.SteamId64,
         Status = t.Status,

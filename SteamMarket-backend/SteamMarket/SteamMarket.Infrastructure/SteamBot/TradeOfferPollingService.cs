@@ -61,6 +61,7 @@ public sealed class TradeOfferPollingService : BackgroundService
         using var scope = _scopeFactory.CreateScope();
         var tradeOffers = scope.ServiceProvider.GetRequiredService<ITradeOfferStore>();
         var orders = scope.ServiceProvider.GetRequiredService<ISellOrderService>();
+        var lootBoxes = scope.ServiceProvider.GetRequiredService<ILootBoxService>();
 
         var active = await tradeOffers.GetActiveAsync(ct);
         if (active.Count == 0) return;
@@ -70,23 +71,54 @@ public sealed class TradeOfferPollingService : BackgroundService
             var state = await _bot.GetTradeOfferStateAsync(offer.TradeOfferId, ct);
             if (state is null) continue;
 
-            if (state == BotTradeOfferState.Accepted)
+            var isTerminalGood = state == BotTradeOfferState.Accepted;
+            var isTerminalBad = state is BotTradeOfferState.Declined or BotTradeOfferState.Expired or
+                BotTradeOfferState.Canceled or BotTradeOfferState.InvalidItems or
+                BotTradeOfferState.CanceledBySecondFactor;
+
+            if (offer.Kind == "LootBoxRedeem" && offer.LootBoxWinId is { } winId)
+            {
+                if (isTerminalGood)
+                {
+                    await tradeOffers.UpdateStatusAsync(offer.Id, (int)state.Value, ct);
+                    await lootBoxes.CompleteRedeemAsync(winId, ct);
+                    _logger.LogInformation(
+                        "TradeOfferPollingService: canje {TradeOfferId} aceptado, premio {WinId} entregado.",
+                        offer.TradeOfferId, winId);
+                }
+                else if (isTerminalBad)
+                {
+                    await tradeOffers.UpdateStatusAsync(offer.Id, (int)state.Value, ct);
+                    await lootBoxes.FailRedeemAsync(winId, $"Oferta de Steam en estado {state}.", ct);
+                    _logger.LogWarning(
+                        "TradeOfferPollingService: canje {TradeOfferId} termino en {State}, premio {WinId} vuelve a Reserved.",
+                        offer.TradeOfferId, state, winId);
+                }
+                else if (state != BotTradeOfferState.Active && state != BotTradeOfferState.NeedsConfirmation)
+                {
+                    await tradeOffers.UpdateStatusAsync(offer.Id, (int)state.Value, ct);
+                }
+
+                continue;
+            }
+
+            if (offer.SellOrderId is not { } sellOrderId) continue;
+
+            if (isTerminalGood)
             {
                 await tradeOffers.UpdateStatusAsync(offer.Id, (int)state.Value, ct);
-                var completed = await orders.CompleteOrderAsync(offer.SellOrderId, ct);
+                var completed = await orders.CompleteOrderAsync(sellOrderId, ct);
                 _logger.LogInformation(
                     "TradeOfferPollingService: oferta {TradeOfferId} aceptada, orden {SellOrderId} completada={Completed}.",
-                    offer.TradeOfferId, offer.SellOrderId, completed);
+                    offer.TradeOfferId, sellOrderId, completed);
             }
-            else if (state is BotTradeOfferState.Declined or BotTradeOfferState.Expired or
-                     BotTradeOfferState.Canceled or BotTradeOfferState.InvalidItems or
-                     BotTradeOfferState.CanceledBySecondFactor)
+            else if (isTerminalBad)
             {
                 await tradeOffers.UpdateStatusAsync(offer.Id, (int)state.Value, ct);
-                await orders.RejectOrderAsync(offer.SellOrderId, $"Oferta de Steam en estado {state}.", ct);
+                await orders.RejectOrderAsync(sellOrderId, $"Oferta de Steam en estado {state}.", ct);
                 _logger.LogWarning(
                     "TradeOfferPollingService: oferta {TradeOfferId} termino en {State}, orden {SellOrderId} rechazada.",
-                    offer.TradeOfferId, state, offer.SellOrderId);
+                    offer.TradeOfferId, state, sellOrderId);
             }
             else if (state != BotTradeOfferState.Active && state != BotTradeOfferState.NeedsConfirmation)
             {

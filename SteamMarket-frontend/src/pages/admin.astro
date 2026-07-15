@@ -3,70 +3,182 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Admin" wide>
-  <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
+  <div id="state-loading" class="py-20 text-center text-on-surface-variant">Cargando...</div>
 
-  <div id="state-forbidden" class="hidden py-20 text-center text-neutral-400">
+  <div id="state-forbidden" class="hidden py-20 text-center text-on-surface-variant">
     No tienes acceso a esta página.
   </div>
 
-  <div id="state-content" class="hidden space-y-8">
+  <div id="state-content" class="hidden space-y-10">
+    <div>
+      <h1 class="font-headline text-2xl font-black uppercase text-on-surface">Panel de administración</h1>
+      <p class="mt-1 text-sm text-on-surface-variant">Aprueba ventas y retiros, y arma el catálogo de cajas.</p>
+    </div>
+
+    <!-- Stats rapidas -->
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div class="flex items-center gap-3 rounded-xl border border-dota-border bg-surface-container-low p-4">
+        <span class="material-symbols-outlined text-2xl text-dota-gold">receipt_long</span>
+        <div>
+          <p id="stat-orders-count" class="font-label text-xl font-bold text-on-surface">0</p>
+          <p class="text-xs text-on-surface-variant">Órdenes pendientes</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 rounded-xl border border-dota-border bg-surface-container-low p-4">
+        <span class="material-symbols-outlined text-2xl text-dota-gold">payments</span>
+        <div>
+          <p id="stat-withdrawals-count" class="font-label text-xl font-bold text-on-surface">0</p>
+          <p class="text-xs text-on-surface-variant">Retiros pendientes</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 rounded-xl border border-dota-border bg-surface-container-low p-4">
+        <span class="material-symbols-outlined text-2xl text-dota-gold">inventory_2</span>
+        <div>
+          <p id="stat-boxes-count" class="font-label text-xl font-bold text-on-surface">0</p>
+          <p class="text-xs text-on-surface-variant">Cajas activas</p>
+        </div>
+      </div>
+    </div>
+
     <section>
-      <h1 class="mb-4 text-xl font-semibold text-neutral-100">Órdenes de venta pendientes</h1>
+      <h2 class="mb-4 flex items-center gap-2 font-headline text-lg font-bold uppercase text-on-surface">
+        <span class="material-symbols-outlined text-dota-gold">receipt_long</span>
+        Órdenes de venta pendientes
+      </h2>
       <div id="orders-list" class="space-y-4"></div>
-      <p id="orders-empty" class="hidden py-8 text-center text-sm text-neutral-500">
+      <p id="orders-empty" class="hidden rounded-lg border border-dota-border bg-surface-container-low py-8 text-center text-sm text-on-surface-variant">
         No hay órdenes pendientes.
       </p>
     </section>
 
     <section>
-      <h1 class="mb-4 text-xl font-semibold text-neutral-100">Retiros pendientes</h1>
+      <h2 class="mb-4 flex items-center gap-2 font-headline text-lg font-bold uppercase text-on-surface">
+        <span class="material-symbols-outlined text-dota-gold">payments</span>
+        Retiros pendientes
+      </h2>
       <div id="withdrawals-list" class="space-y-3"></div>
-      <p id="withdrawals-empty" class="hidden py-8 text-center text-sm text-neutral-500">
+      <p id="withdrawals-empty" class="hidden rounded-lg border border-dota-border bg-surface-container-low py-8 text-center text-sm text-on-surface-variant">
         No hay retiros pendientes.
       </p>
     </section>
 
+    <section>
+      <h2 class="mb-2 flex items-center gap-2 font-headline text-lg font-bold uppercase text-on-surface">
+        <span class="material-symbols-outlined text-dota-gold">inventory_2</span>
+        Cajas: rellenar desde el almacén
+      </h2>
+      <p class="mb-4 text-sm text-on-surface-variant">
+        El almacén es tu propio inventario de Steam (todavía no el del bot, que no está
+        conectado): sirve para armar y probar los pools de cada caja. Cuando conectes la cuenta
+        bot, apuntamos esto a su inventario para que lo que se sortea sea lo que de verdad se
+        puede entregar. Elige una caja, ponle un límite de valor si quieres, y agrega items
+        reales: el peso (probabilidad) se calcula solo, al revés del precio (más barato = más
+        probable, más caro = menos probable, pero nunca 0).
+      </p>
+
+      <div class="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-dota-border bg-surface-container-low p-4">
+        <div>
+          <label for="lb-select" class="mb-1 block font-label text-xs uppercase text-on-surface-variant">Caja</label>
+          <select
+            id="lb-select"
+            class="w-56 rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
+          >
+            <option value="">Elige una caja...</option>
+          </select>
+        </div>
+        <div>
+          <label for="lb-max-price" class="mb-1 block font-label text-xs uppercase text-on-surface-variant">Límite de valor (S/, vacío = sin límite)</label>
+          <input
+            id="lb-max-price"
+            type="number"
+            step="0.01"
+            min="0"
+            class="w-48 rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
+          />
+        </div>
+        <button
+          id="btn-lb-save-cap"
+          class="rounded-lg bg-dota-gold px-4 py-1.5 font-label text-xs font-bold uppercase text-surface-container-lowest transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Guardar límite
+        </button>
+      </div>
+      <p id="lb-cap-message" class="mb-4 hidden text-sm"></p>
+
+      <div id="lb-panels" class="hidden grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div>
+          <h3 class="mb-2 font-headline font-bold uppercase tracking-tight text-on-surface">Contenido actual de la caja</h3>
+          <div id="lb-pool-summary" class="mb-3 hidden rounded-xl border border-dota-border bg-surface-container-low p-4 text-xs text-on-surface-variant"></div>
+          <div id="lb-pool-list" class="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-dota-border bg-surface-container-low p-3"></div>
+          <p id="lb-pool-empty" class="hidden py-6 text-center text-sm text-on-surface-variant">
+            Esta caja todavía no tiene items.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="mb-2 font-headline font-bold uppercase tracking-tight text-on-surface">Almacén (tu inventario de Steam)</h3>
+          <div class="relative mb-2">
+            <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-on-surface-variant">search</span>
+            <input
+              id="lb-warehouse-search"
+              type="text"
+              placeholder="Buscar por nombre"
+              class="w-full rounded-lg border border-dota-border bg-surface py-1.5 pl-9 pr-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-dota-gold/50 focus:outline-none"
+            />
+          </div>
+          <div id="lb-warehouse-list" class="max-h-[28rem] space-y-2 overflow-y-auto rounded-xl border border-dota-border bg-surface-container-low p-3"></div>
+          <p id="lb-warehouse-empty" class="hidden py-6 text-center text-sm text-on-surface-variant">
+            No se encontraron items marketable en tu inventario ahora mismo (revisa que tu
+            inventario de Steam esté público).
+          </p>
+        </div>
+      </div>
+    </section>
+
     <section id="section-accounts" class="hidden">
-      <h1 class="mb-4 text-xl font-semibold text-neutral-100">Cuentas admin</h1>
-      <p class="mb-4 text-sm text-neutral-500">
+      <h2 class="mb-2 flex items-center gap-2 font-headline text-lg font-bold uppercase text-on-surface">
+        <span class="material-symbols-outlined text-dota-gold">admin_panel_settings</span>
+        Cuentas admin
+      </h2>
+      <p class="mb-4 text-sm text-on-surface-variant">
         Cuentas que pueden aprobar órdenes y retiros, cada una con su propia Trade URL (útil si
         una cuenta no tiene espacio para recibir más items).
       </p>
 
       <div id="accounts-list" class="mb-4 space-y-2"></div>
 
-      <form id="form-add-account" class="flex flex-wrap items-end gap-2 rounded-lg border border-dota-border bg-dota-panel p-4">
+      <form id="form-add-account" class="flex flex-wrap items-end gap-3 rounded-xl border border-dota-border bg-surface-container-low p-4">
         <div>
-          <label for="acc-steamid" class="mb-1 block text-xs text-neutral-400">SteamID64</label>
+          <label for="acc-steamid" class="mb-1 block font-label text-xs uppercase text-on-surface-variant">SteamID64</label>
           <input
             id="acc-steamid"
             type="text"
             placeholder="7656119..."
-            class="w-44 rounded border border-dota-border bg-dota-bg px-2 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+            class="w-44 rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
           />
         </div>
         <div>
-          <label for="acc-tradeurl" class="mb-1 block text-xs text-neutral-400">Trade URL</label>
+          <label for="acc-tradeurl" class="mb-1 block font-label text-xs uppercase text-on-surface-variant">Trade URL</label>
           <input
             id="acc-tradeurl"
             type="text"
             placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..."
-            class="w-80 rounded border border-dota-border bg-dota-bg px-2 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+            class="w-80 rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
           />
         </div>
         <div>
-          <label for="acc-label" class="mb-1 block text-xs text-neutral-400">Etiqueta (opcional)</label>
+          <label for="acc-label" class="mb-1 block font-label text-xs uppercase text-on-surface-variant">Etiqueta (opcional)</label>
           <input
             id="acc-label"
             type="text"
             placeholder="Almacén 2"
-            class="w-32 rounded border border-dota-border bg-dota-bg px-2 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+            class="w-32 rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
           />
         </div>
         <button
           id="btn-add-account"
           type="submit"
-          class="rounded-md bg-dota-red px-4 py-1.5 text-sm font-medium text-white transition hover:brightness-110"
+          class="rounded-lg bg-dota-gold px-4 py-1.5 font-label text-xs font-bold uppercase text-surface-container-lowest transition hover:brightness-110"
         >
           Agregar
         </button>
@@ -88,13 +200,32 @@ import Layout from "../layouts/Layout.astro";
     getAdminAccounts,
     addAdminAccount,
     removeAdminAccount,
+    getAdminLootBoxes,
+    saveLootBox,
+    getAdminLootBoxItems,
+    removeLootBoxItem,
+    getWarehouse,
+    addLootBoxItemFromStock,
     type SellOrderDto,
     type WithdrawalDto,
     type AdminAccountDto,
+    type LootBoxDto,
+    type LootBoxPoolItemDto,
+    type WarehouseItemDto,
   } from "../lib/api";
 
   const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
   const dateFmt = new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short" });
+
+  // Mismos colores de rareza que el resto del sitio (ver global.css / cajas/[slug].astro).
+  const RARITY_COLORS: Record<string, string> = {
+    Immortal: "#f0b90b",
+    Arcana: "#f0b90b",
+    Mythical: "#a335ee",
+    Legendary: "#ff8000",
+    Rare: "#0070dd",
+    Ancient: "#e6cc80",
+  };
 
   function show(id: string) {
     document.getElementById(id)?.classList.remove("hidden");
@@ -111,6 +242,9 @@ import Layout from "../layouts/Layout.astro";
     list.innerHTML = "";
     document.getElementById("orders-empty")?.classList.toggle("hidden", orders.length > 0);
 
+    const statEl = document.getElementById("stat-orders-count");
+    if (statEl) statEl.textContent = String(orders.length);
+
     for (const order of orders as SellOrderDto[]) {
       list.appendChild(renderOrderCard(order));
     }
@@ -118,16 +252,16 @@ import Layout from "../layouts/Layout.astro";
 
   function renderOrderCard(order: SellOrderDto): HTMLElement {
     const card = document.createElement("article");
-    card.className = "rounded-lg border border-dota-border bg-dota-panel p-4";
+    card.className = "rounded-xl border border-dota-border bg-surface-container-low p-4";
 
     const header = document.createElement("div");
     header.className = "mb-3 flex flex-wrap items-center justify-between gap-2";
     header.innerHTML = `
       <div>
-        <p class="text-sm font-medium text-neutral-100">SteamID: <span class="font-mono text-xs text-neutral-400">${order.steamId}</span></p>
-        <p class="text-xs text-neutral-500">${dateFmt.format(new Date(order.createdAtUtc))}</p>
+        <p class="text-sm font-medium text-on-surface">SteamID: <span class="font-label text-xs text-on-surface-variant">${order.steamId}</span></p>
+        <p class="text-xs text-on-surface-variant">${dateFmt.format(new Date(order.createdAtUtc))}</p>
       </div>
-      <p class="text-lg font-bold text-dota-gold">${soles.format(order.totalAmount)}</p>
+      <p class="font-label text-lg font-bold text-dota-gold">${soles.format(order.totalAmount)}</p>
     `;
     card.appendChild(header);
 
@@ -135,7 +269,7 @@ import Layout from "../layouts/Layout.astro";
     itemsGrid.className = "grid grid-cols-3 gap-2 sm:grid-cols-6";
     for (const item of order.items) {
       const itemCard = document.createElement("div");
-      itemCard.className = "rounded border border-dota-border bg-dota-bg p-2 text-center";
+      itemCard.className = "rounded-lg border border-dota-border bg-surface p-2 text-center";
       if (item.iconUrl) {
         const img = document.createElement("img");
         img.src = item.iconUrl;
@@ -144,10 +278,10 @@ import Layout from "../layouts/Layout.astro";
         itemCard.appendChild(img);
       }
       const name = document.createElement("p");
-      name.className = "mt-1 line-clamp-2 text-xs text-neutral-300";
+      name.className = "mt-1 line-clamp-2 text-xs text-on-surface";
       name.textContent = item.name;
       const price = document.createElement("p");
-      price.className = "text-xs font-semibold text-emerald-500";
+      price.className = "font-label text-xs font-semibold text-emerald-500";
       price.textContent = soles.format(item.payoutPrice);
       itemCard.appendChild(name);
       itemCard.appendChild(price);
@@ -156,12 +290,12 @@ import Layout from "../layouts/Layout.astro";
     card.appendChild(itemsGrid);
 
     const actions = document.createElement("div");
-    actions.className = "mt-3 flex gap-2";
+    actions.className = "mt-3 flex flex-wrap gap-2";
 
     const btnComplete = document.createElement("button");
     btnComplete.textContent = "Marcar completado (recibí el trade)";
     btnComplete.className =
-      "rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110";
+      "rounded-lg bg-emerald-600 px-3 py-2 font-label text-xs font-bold uppercase text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
     btnComplete.addEventListener("click", async () => {
       btnComplete.disabled = true;
       const error = await completeOrder(order.id);
@@ -176,7 +310,7 @@ import Layout from "../layouts/Layout.astro";
     const btnReject = document.createElement("button");
     btnReject.textContent = "Rechazar";
     btnReject.className =
-      "rounded-md border border-dota-red/50 px-3 py-1.5 text-xs font-medium text-dota-red transition hover:bg-dota-red/10";
+      "rounded-lg border border-dota-red/50 px-3 py-2 font-label text-xs font-bold uppercase text-dota-red transition hover:bg-dota-red/10 disabled:cursor-not-allowed disabled:opacity-50";
     btnReject.addEventListener("click", async () => {
       const note = window.prompt("Motivo del rechazo (opcional):") ?? undefined;
       btnReject.disabled = true;
@@ -204,27 +338,30 @@ import Layout from "../layouts/Layout.astro";
     list.innerHTML = "";
     document.getElementById("withdrawals-empty")?.classList.toggle("hidden", withdrawals.length > 0);
 
+    const statEl = document.getElementById("stat-withdrawals-count");
+    if (statEl) statEl.textContent = String(withdrawals.length);
+
     for (const w of withdrawals as WithdrawalDto[]) {
       const row = document.createElement("div");
-      row.className = "flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dota-border bg-dota-panel p-4";
+      row.className = "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dota-border bg-surface-container-low p-4";
 
       const info = document.createElement("div");
       info.innerHTML = `
-        <p class="text-sm font-medium text-neutral-100">SteamID: <span class="font-mono text-xs text-neutral-400">${w.steamId}</span></p>
-        <p class="text-sm text-neutral-300">${w.method} · ${w.destination}</p>
-        <p class="text-xs text-neutral-500">${dateFmt.format(new Date(w.createdAtUtc))}</p>
+        <p class="text-sm font-medium text-on-surface">SteamID: <span class="font-label text-xs text-on-surface-variant">${w.steamId}</span></p>
+        <p class="text-sm text-on-surface-variant">${w.method} · ${w.destination}</p>
+        <p class="text-xs text-on-surface-variant">${dateFmt.format(new Date(w.createdAtUtc))}</p>
       `;
 
       const right = document.createElement("div");
-      right.className = "flex items-center gap-3";
+      right.className = "flex items-center gap-2";
 
       const amount = document.createElement("span");
-      amount.className = "text-lg font-bold text-dota-gold";
+      amount.className = "font-label text-lg font-bold text-dota-gold";
       amount.textContent = soles.format(w.amount);
 
       const btnPaid = document.createElement("button");
       btnPaid.textContent = "Marcar pagado";
-      btnPaid.className = "rounded-md bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white transition hover:brightness-110";
+      btnPaid.className = "rounded-lg bg-emerald-600 px-3 py-2 font-label text-xs font-bold uppercase text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
       btnPaid.addEventListener("click", async () => {
         btnPaid.disabled = true;
         const error = await markWithdrawalPaid(w.id);
@@ -239,7 +376,7 @@ import Layout from "../layouts/Layout.astro";
       const btnReject = document.createElement("button");
       btnReject.textContent = "Rechazar";
       btnReject.className =
-        "rounded-md border border-dota-red/50 px-3 py-1.5 text-xs font-medium text-dota-red transition hover:bg-dota-red/10";
+        "rounded-lg border border-dota-red/50 px-3 py-2 font-label text-xs font-bold uppercase text-dota-red transition hover:bg-dota-red/10 disabled:cursor-not-allowed disabled:opacity-50";
       btnReject.addEventListener("click", async () => {
         btnReject.disabled = true;
         const error = await rejectWithdrawal(w.id);
@@ -261,6 +398,287 @@ import Layout from "../layouts/Layout.astro";
     }
   }
 
+  // --- Cajas: rellenar desde el almacen ---
+
+  let lootBoxes: LootBoxDto[] = [];
+  let selectedBox: LootBoxDto | null = null;
+  let warehouse: WarehouseItemDto[] = [];
+
+  async function initLootBoxSection() {
+    lootBoxes = await getAdminLootBoxes();
+
+    const boxesStatEl = document.getElementById("stat-boxes-count");
+    if (boxesStatEl) boxesStatEl.textContent = String(lootBoxes.filter((b) => b.isActive).length);
+
+    const select = document.getElementById("lb-select") as HTMLSelectElement | null;
+    if (!select) return;
+
+    for (const box of lootBoxes) {
+      const option = document.createElement("option");
+      option.value = box.slug;
+      option.textContent = `${box.category} · ${box.name} (S/ ${box.price.toFixed(2)})`;
+      select.appendChild(option);
+    }
+
+    select.addEventListener("change", async () => {
+      selectedBox = lootBoxes.find((b) => b.slug === select.value) ?? null;
+      if (!selectedBox) {
+        document.getElementById("lb-panels")?.classList.add("hidden");
+        return;
+      }
+
+      const maxPriceInput = document.getElementById("lb-max-price") as HTMLInputElement | null;
+      if (maxPriceInput) maxPriceInput.value = selectedBox.maxItemPrice != null ? String(selectedBox.maxItemPrice) : "";
+
+      show("lb-panels");
+      hide("lb-cap-message");
+
+      await Promise.all([refreshPool(), refreshWarehouse()]);
+    });
+
+    document.getElementById("btn-lb-save-cap")?.addEventListener("click", async () => {
+      if (!selectedBox) return;
+
+      const maxPriceInput = document.getElementById("lb-max-price") as HTMLInputElement | null;
+      const raw = maxPriceInput?.value.trim() ?? "";
+      const maxItemPrice = raw === "" ? null : parseFloat(raw);
+
+      const error = await saveLootBox({
+        slug: selectedBox.slug,
+        name: selectedBox.name,
+        category: selectedBox.category,
+        price: selectedBox.price,
+        maxItemPrice,
+        imageUrl: selectedBox.imageUrl,
+        sortOrder: selectedBox.sortOrder,
+        isActive: selectedBox.isActive,
+      });
+
+      const msg = document.getElementById("lb-cap-message");
+      if (msg) {
+        msg.textContent = error ?? "Límite guardado.";
+        msg.className = `mb-4 text-sm ${error ? "text-dota-red" : "text-emerald-500"}`;
+        show("lb-cap-message");
+      }
+
+      if (!error) {
+        selectedBox = { ...selectedBox, maxItemPrice };
+        lootBoxes = lootBoxes.map((b) => (b.slug === selectedBox!.slug ? selectedBox! : b));
+        await refreshWarehouse();
+      }
+    });
+
+    document.getElementById("lb-warehouse-search")?.addEventListener("input", () => {
+      renderWarehouse();
+    });
+  }
+
+  async function refreshPool() {
+    if (!selectedBox) return;
+
+    const items = await getAdminLootBoxItems(selectedBox.slug);
+    const list = document.getElementById("lb-pool-list");
+    if (!list) return;
+
+    list.innerHTML = "";
+    document.getElementById("lb-pool-empty")?.classList.toggle("hidden", items.length > 0);
+
+    const totalWeight = items.reduce((sum, i) => sum + i.weight, 0);
+    renderPoolSummary(items as LootBoxPoolItemDto[], totalWeight);
+
+    for (const item of items as LootBoxPoolItemDto[]) {
+      const row = document.createElement("div");
+      row.className = "flex items-center gap-2 rounded-lg border-l-4 border-dota-border bg-surface p-2";
+      row.style.borderLeftColor = RARITY_COLORS[item.rarity] ?? "#4b5563";
+
+      if (item.imageUrl) {
+        const img = document.createElement("img");
+        img.src = item.imageUrl;
+        img.alt = item.displayName;
+        img.className = "h-10 w-10 shrink-0 object-contain";
+        row.appendChild(img);
+      }
+
+      const info = document.createElement("div");
+      info.className = "min-w-0 flex-1";
+      const name = document.createElement("p");
+      name.className = "truncate text-sm text-on-surface";
+      name.textContent = item.displayName;
+      const meta = document.createElement("p");
+      meta.className = "font-label text-xs text-on-surface-variant";
+      const pct = totalWeight > 0 ? ((item.weight / totalWeight) * 100).toFixed(2) : "0.00";
+      meta.textContent = `${item.rarity} · peso ${item.weight} · ~${pct}% de probabilidad`;
+      info.appendChild(name);
+      info.appendChild(meta);
+      row.appendChild(info);
+
+      const btnRemove = document.createElement("button");
+      btnRemove.textContent = "Quitar";
+      btnRemove.className =
+        "shrink-0 rounded-lg border border-dota-red/50 px-2 py-1 font-label text-xs font-bold text-dota-red transition hover:bg-dota-red/10 disabled:cursor-not-allowed disabled:opacity-50";
+      btnRemove.addEventListener("click", async () => {
+        btnRemove.disabled = true;
+        const error = await removeLootBoxItem(item.id);
+        if (error) {
+          alert(error);
+          btnRemove.disabled = false;
+          return;
+        }
+        await refreshPool();
+      });
+      row.appendChild(btnRemove);
+
+      list.appendChild(row);
+    }
+  }
+
+  /// Resumen del cofre agrupado por calidad (rareza): cuantos items hay de cada una, cuanto
+  /// stock real tiene el bot ahora mismo (cruzando con el almacen ya cargado), y el "valor
+  /// esperado" de abrir la caja (precio x probabilidad de cada item, sumado) comparado contra
+  /// el precio de venta de la caja, para poder balancear las probabilidades antes de publicarla.
+  function renderPoolSummary(items: LootBoxPoolItemDto[], totalWeight: number) {
+    const box = document.getElementById("lb-pool-summary");
+    if (!box) return;
+
+    box.classList.toggle("hidden", items.length === 0);
+    if (items.length === 0) return;
+
+    type Group = { count: number; weight: number; stock: number; priceSum: number; priced: number };
+    const groups = new Map<string, Group>();
+    let expectedValue = 0;
+    let uncosted = 0;
+
+    for (const item of items) {
+      const stockItem = warehouse.find((w) => w.marketHashName === item.marketHashName);
+      const price = stockItem?.price ?? null;
+      const stock = stockItem?.quantity ?? 0;
+      const probability = totalWeight > 0 ? item.weight / totalWeight : 0;
+
+      const g = groups.get(item.rarity) ?? { count: 0, weight: 0, stock: 0, priceSum: 0, priced: 0 };
+      g.count += 1;
+      g.weight += item.weight;
+      g.stock += stock;
+      if (price != null) {
+        g.priceSum += price;
+        g.priced += 1;
+        expectedValue += price * probability;
+      } else {
+        uncosted += 1;
+      }
+      groups.set(item.rarity, g);
+    }
+
+    const rarityOrder = ["Immortal", "Arcana", "Mythical", "Legendary", "Rare", "Uncommon", "Common"];
+    const sortedRarities = [...groups.keys()].sort(
+      (a, b) => rarityOrder.indexOf(a) - rarityOrder.indexOf(b) || a.localeCompare(b),
+    );
+
+    const rows = sortedRarities
+      .map((rarity) => {
+        const g = groups.get(rarity)!;
+        const pct = totalWeight > 0 ? ((g.weight / totalWeight) * 100).toFixed(2) : "0.00";
+        const avgPrice = g.priced > 0 ? soles.format(g.priceSum / g.priced) : "sin cotizar";
+        return `<tr>
+          <td class="py-1.5 pr-3 text-on-surface">${rarity}</td>
+          <td class="py-1.5 pr-3">${g.count}</td>
+          <td class="py-1.5 pr-3">${g.stock}</td>
+          <td class="py-1.5 pr-3">${avgPrice}</td>
+          <td class="py-1.5">${pct}%</td>
+        </tr>`;
+      })
+      .join("");
+
+    const margin = selectedBox ? expectedValue - selectedBox.price : null;
+    const marginPct = selectedBox && selectedBox.price > 0 ? (margin! / selectedBox.price) * 100 : null;
+    const marginColor = margin != null && margin > 0 ? "text-dota-red" : "text-emerald-500";
+
+    box.innerHTML = `
+      <table class="w-full text-left">
+        <thead class="font-label text-[10px] uppercase tracking-wide text-on-surface-variant">
+          <tr>
+            <th class="pb-2 pr-3 font-normal">Calidad</th>
+            <th class="pb-2 pr-3 font-normal">Items</th>
+            <th class="pb-2 pr-3 font-normal">Stock bot</th>
+            <th class="pb-2 pr-3 font-normal">Precio prom.</th>
+            <th class="pb-2 font-normal">Prob. total</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p class="mt-3 border-t border-dota-border pt-3 text-on-surface-variant">
+        Valor esperado por apertura: <strong class="text-on-surface">${soles.format(expectedValue)}</strong>
+        vs precio de la caja <strong class="text-on-surface">${selectedBox ? soles.format(selectedBox.price) : "-"}</strong>
+        ${marginPct != null ? `&middot; margen para la web: <strong class="${marginColor}">${(-marginPct).toFixed(1)}%</strong>` : ""}
+        ${uncosted > 0 ? `<br /><span class="text-amber-500">${uncosted} item(s) sin cotizar ahora mismo (no estan en el almacen actual del bot) — no cuentan en el valor esperado.</span>` : ""}
+      </p>
+    `;
+  }
+
+  async function refreshWarehouse() {
+    warehouse = await getWarehouse();
+    renderWarehouse();
+  }
+
+  function renderWarehouse() {
+    const list = document.getElementById("lb-warehouse-list");
+    if (!list) return;
+
+    const search = (document.getElementById("lb-warehouse-search") as HTMLInputElement | null)?.value.trim().toLowerCase() ?? "";
+    const filtered = warehouse.filter((w) => !search || w.displayName.toLowerCase().includes(search));
+
+    list.innerHTML = "";
+    document.getElementById("lb-warehouse-empty")?.classList.toggle("hidden", warehouse.length > 0);
+
+    for (const item of filtered) {
+      const row = document.createElement("div");
+      row.className = "flex items-center gap-2 rounded-lg border-l-4 border-dota-border bg-surface p-2";
+      row.style.borderLeftColor = RARITY_COLORS[item.rarity] ?? "#4b5563";
+
+      if (item.imageUrl) {
+        const img = document.createElement("img");
+        img.src = item.imageUrl;
+        img.alt = item.displayName;
+        img.className = "h-10 w-10 shrink-0 object-contain";
+        row.appendChild(img);
+      }
+
+      const info = document.createElement("div");
+      info.className = "min-w-0 flex-1";
+      const name = document.createElement("p");
+      name.className = "truncate text-sm text-on-surface";
+      name.textContent = item.displayName;
+      const meta = document.createElement("p");
+      meta.className = "font-label text-xs text-on-surface-variant";
+      meta.textContent = `${item.rarity} · x${item.quantity} · ${item.price != null ? soles.format(item.price) : "sin cotizar"}`;
+      info.appendChild(name);
+      info.appendChild(meta);
+      row.appendChild(info);
+
+      const overCap =
+        selectedBox?.maxItemPrice != null && item.price != null && item.price > selectedBox.maxItemPrice;
+
+      const btnAdd = document.createElement("button");
+      btnAdd.textContent = overCap ? "Supera el límite" : "Agregar";
+      btnAdd.disabled = overCap || item.price == null;
+      btnAdd.className =
+        "shrink-0 rounded-lg bg-dota-gold px-2 py-1 font-label text-xs font-bold text-surface-container-lowest transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50";
+      btnAdd.addEventListener("click", async () => {
+        if (!selectedBox) return;
+        btnAdd.disabled = true;
+        const error = await addLootBoxItemFromStock(selectedBox.slug, item.marketHashName);
+        if (error) {
+          alert(error);
+          btnAdd.disabled = false;
+          return;
+        }
+        await refreshPool();
+      });
+      row.appendChild(btnAdd);
+
+      list.appendChild(row);
+    }
+  }
+
   async function refreshAccounts() {
     const accounts = await getAdminAccounts();
     const list = document.getElementById("accounts-list");
@@ -270,14 +688,14 @@ import Layout from "../layouts/Layout.astro";
 
     for (const acc of accounts as AdminAccountDto[]) {
       const row = document.createElement("div");
-      row.className = "flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dota-border bg-dota-panel p-3";
+      row.className = "flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dota-border bg-surface-container-low p-3";
 
       const info = document.createElement("div");
       const line1 = document.createElement("p");
-      line1.className = "text-sm text-neutral-100";
+      line1.className = "text-sm font-medium text-on-surface";
       line1.textContent = acc.label ? `${acc.label} — ${acc.steamId}` : acc.steamId;
       const line2 = document.createElement("p");
-      line2.className = "break-all text-xs text-neutral-500";
+      line2.className = "break-all font-label text-xs text-on-surface-variant";
       line2.textContent = acc.tradeUrl;
       info.appendChild(line1);
       info.appendChild(line2);
@@ -285,14 +703,14 @@ import Layout from "../layouts/Layout.astro";
 
       if (acc.isSuperAdmin) {
         const badge = document.createElement("span");
-        badge.className = "rounded bg-dota-gold/10 px-2 py-1 text-xs font-medium text-dota-gold";
+        badge.className = "rounded-full bg-dota-gold/10 px-3 py-1 font-label text-xs font-bold uppercase text-dota-gold";
         badge.textContent = "Super admin";
         row.appendChild(badge);
       } else {
         const btnRemove = document.createElement("button");
         btnRemove.textContent = "Quitar";
         btnRemove.className =
-          "rounded-md border border-dota-red/50 px-3 py-1.5 text-xs font-medium text-dota-red transition hover:bg-dota-red/10";
+          "rounded-lg border border-dota-red/50 px-3 py-1.5 font-label text-xs font-bold uppercase text-dota-red transition hover:bg-dota-red/10 disabled:cursor-not-allowed disabled:opacity-50";
         btnRemove.addEventListener("click", async () => {
           btnRemove.disabled = true;
           const error = await removeAdminAccount(acc.steamId);
@@ -324,6 +742,7 @@ import Layout from "../layouts/Layout.astro";
     }
 
     await Promise.all([refreshOrders(), refreshWithdrawals()]);
+    await initLootBoxSection();
 
     if (me.isSuperAdmin) {
       show("section-accounts");

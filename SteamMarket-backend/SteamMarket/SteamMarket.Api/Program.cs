@@ -111,6 +111,7 @@ using (var scope = app.Services.CreateScope())
     else
     {
         db.Database.Migrate();
+        await SeedLootBoxesAsync(db);
     }
 }
 
@@ -133,3 +134,57 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Crea las cajas base (nombre/categoria/precio) igual que las secciones de giordota.com/cajas,
+// SOLO si la tabla esta vacia (para no pisar nada si el admin ya las edito desde /admin). El
+// pool de items posibles de cada caja queda vacio a proposito: eso lo tiene que cargar el admin
+// a mano (POST /api/admin/lootboxes/{slug}/items), porque cada item necesita stock real
+// verificable en el inventario de la cuenta bot, no es algo que se pueda inventar en un seed.
+static async Task SeedLootBoxesAsync(SteamMarketDbContext db)
+{
+    if (await db.LootBoxes.AnyAsync()) return;
+
+    var boxes = new (string Slug, string Name, string Category, decimal Price, int SortOrder)[]
+    {
+        ("carry", "Carry", "Rol", 2.90m, 0),
+        ("support", "Support", "Rol", 2.90m, 1),
+        ("midlaner", "Midlaner", "Rol", 2.90m, 2),
+        ("offlaner", "Offlaner", "Rol", 2.90m, 3),
+        ("hard-support", "Hard Support", "Rol", 2.90m, 4),
+
+        ("buti", "Buti", "VIP", 14.90m, 0),
+        ("macarius", "Macarius", "VIP", 9.90m, 1),
+        ("gloglo-king", "GloGloKing", "VIP", 9.90m, 2),
+        ("techisor", "Techisor", "VIP", 9.90m, 3),
+        ("daad", "DaaD", "VIP", 9.90m, 4),
+        ("papicha", "Papicha", "VIP", 9.90m, 5),
+
+        ("heraldo", "Heraldo", "Medalla", 0.75m, 0),
+        ("guardian", "Guardian", "Medalla", 1.50m, 1),
+        ("cruzado", "Cruzado", "Medalla", 2.50m, 2),
+        ("arconte", "Arconte", "Medalla", 3.50m, 3),
+        ("leyenda", "Leyenda", "Medalla", 5.50m, 4),
+        ("ancient", "Ancient", "Medalla", 7.50m, 5),
+
+        ("la-gratis", "La gratis", "Gratis", 0m, 0),
+        ("redes-sociales", "Redes sociales", "Gratis", 0m, 1),
+        ("super-fan", "Super fan", "Gratis", 0m, 2),
+        ("la-chismosa", "La Chismosa", "Gratis", 0m, 3),
+    };
+
+    foreach (var b in boxes)
+    {
+        db.LootBoxes.Add(new LootBox
+        {
+            Id = Guid.NewGuid(),
+            Slug = b.Slug,
+            Name = b.Name,
+            Category = b.Category,
+            Price = b.Price,
+            SortOrder = b.SortOrder,
+            IsActive = true,
+        });
+    }
+
+    await db.SaveChangesAsync();
+}

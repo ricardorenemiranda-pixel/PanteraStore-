@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using SteamMarket.Api.Contracts;
+using SteamMarket.Application.DTOs;
 using SteamMarket.Application.Services.Interfaces;
 
 namespace SteamMarket.Api.Controllers;
@@ -21,17 +22,20 @@ public class AdminController : SteamAuthControllerBase
     private readonly ISellOrderService _orders;
     private readonly IWalletService _wallet;
     private readonly IAdminAccountService _admins;
+    private readonly ILootBoxService _lootBoxes;
     private readonly IValidator<AddAdminAccountRequest> _addAdminValidator;
 
     public AdminController(
         ISellOrderService orders,
         IWalletService wallet,
         IAdminAccountService admins,
+        ILootBoxService lootBoxes,
         IValidator<AddAdminAccountRequest> addAdminValidator)
     {
         _orders = orders;
         _wallet = wallet;
         _admins = admins;
+        _lootBoxes = lootBoxes;
         _addAdminValidator = addAdminValidator;
     }
 
@@ -96,6 +100,111 @@ public class AdminController : SteamAuthControllerBase
         var ok = await _wallet.RejectWithdrawalAsync(id, ct);
         if (!ok) return NotFound(new { error = "El retiro no existe o ya fue resuelto." });
 
+        return Ok(new { ok = true });
+    }
+
+    // --- Catalogo de cajas (cualquier admin, no solo el super admin) ---
+
+    [HttpGet("lootboxes")]
+    public async Task<IActionResult> GetLootBoxes(CancellationToken ct)
+    {
+        var (isAdmin, forbidden) = await TryGetAdminAsync(ct);
+        if (!isAdmin) return forbidden!;
+        return Ok(await _lootBoxes.GetAllBoxesForAdminAsync(ct));
+    }
+
+    [HttpPost("lootboxes")]
+    public async Task<IActionResult> CreateOrUpdateLootBox([FromBody] CreateOrUpdateLootBoxRequest request, CancellationToken ct)
+    {
+        var (isAdmin, forbidden) = await TryGetAdminAsync(ct);
+        if (!isAdmin) return forbidden!;
+
+        var error = await _lootBoxes.CreateOrUpdateBoxAsync(new LootBoxAdminInput
+        {
+            Slug = request.Slug,
+            Name = request.Name,
+            Category = request.Category,
+            Price = request.Price,
+            MaxItemPrice = request.MaxItemPrice,
+            ImageUrl = request.ImageUrl,
+            SortOrder = request.SortOrder,
+            IsActive = request.IsActive,
+        }, ct);
+
+        if (error is not null) return BadRequest(new { error });
+        return Ok(new { ok = true });
+    }
+
+    [HttpGet("lootboxes/{slug}/items")]
+    public async Task<IActionResult> GetLootBoxItems(string slug, CancellationToken ct)
+    {
+        var (isAdmin, forbidden) = await TryGetAdminAsync(ct);
+        if (!isAdmin) return forbidden!;
+
+        var detail = await _lootBoxes.GetBoxDetailAsync(slug, steamId64: null, ct);
+        if (detail is null) return NotFound(new { error = "Esa caja no existe." });
+        return Ok(detail.Contents);
+    }
+
+    [HttpPost("lootboxes/{slug}/items")]
+    public async Task<IActionResult> AddLootBoxItem(string slug, [FromBody] AddLootBoxPoolItemRequest request, CancellationToken ct)
+    {
+        var (isAdmin, forbidden) = await TryGetAdminAsync(ct);
+        if (!isAdmin) return forbidden!;
+
+        var error = await _lootBoxes.AddPoolItemAsync(slug, new LootBoxPoolItemInput
+        {
+            MarketHashName = request.MarketHashName,
+            DisplayName = request.DisplayName,
+            Hero = request.Hero,
+            Slot = request.Slot,
+            Type = request.Type,
+            Rarity = request.Rarity,
+            ImageUrl = request.ImageUrl,
+            Weight = request.Weight,
+        }, ct);
+
+        if (error is not null) return BadRequest(new { error });
+        return Ok(new { ok = true });
+    }
+
+    [HttpDelete("lootboxes/items/{itemId:guid}")]
+    public async Task<IActionResult> RemoveLootBoxItem(Guid itemId, CancellationToken ct)
+    {
+        var (isAdmin, forbidden) = await TryGetAdminAsync(ct);
+        if (!isAdmin) return forbidden!;
+
+        var error = await _lootBoxes.RemovePoolItemAsync(itemId, ct);
+        if (error is not null) return BadRequest(new { error });
+        return Ok(new { ok = true });
+    }
+
+    // --- Almacen: por ahora lee el inventario de la cuenta admin logueada (endpoint publico de
+    // Steam, no requiere el bot conectado), para poder armar/probar el pool de una caja aunque
+    // el bot todavia no este configurado. Cuando el bot este listo y sea la cuenta real que
+    // entrega los premios, esto se puede apuntar a su BotSteamId64 en su lugar. ---
+
+    [HttpGet("warehouse")]
+    public async Task<IActionResult> GetWarehouse(CancellationToken ct)
+    {
+        var (isAdmin, forbidden) = await TryGetAdminAsync(ct);
+        if (!isAdmin) return forbidden!;
+
+        if (!TryGetSteamId(out var steamId64, out var unauthorized)) return unauthorized!;
+        return Ok(await _lootBoxes.GetWarehouseAsync(steamId64, ct));
+    }
+
+    [HttpPost("lootboxes/{slug}/items/from-stock")]
+    public async Task<IActionResult> AddLootBoxItemFromStock(
+        string slug, [FromBody] AddLootBoxItemFromStockRequest request, CancellationToken ct)
+    {
+        var (isAdmin, forbidden) = await TryGetAdminAsync(ct);
+        if (!isAdmin) return forbidden!;
+
+        if (!TryGetSteamId(out var steamId64, out var unauthorized)) return unauthorized!;
+
+        var error = await _lootBoxes.AddPoolItemFromStockAsync(slug, steamId64, request.MarketHashName, ct);
+        if (error is not null) return BadRequest(new { error });
         return Ok(new { ok = true });
     }
 

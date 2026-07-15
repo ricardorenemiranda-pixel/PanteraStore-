@@ -87,6 +87,9 @@ public static class DependencyInjection
         services.AddScoped<ITradeOfferStore, EfTradeOfferStore>();
         services.AddHostedService<TradeOfferPollingService>();
 
+        // Catalogo de cajas (loot boxes), premios ganados y contador de fidelidad.
+        services.AddScoped<ILootBoxStore, EfLootBoxStore>();
+
         return services;
     }
 }

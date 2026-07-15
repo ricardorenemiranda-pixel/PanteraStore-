@@ -1,0 +1,135 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Cajas" wide>
+  <section class="glass-panel relative mb-10 overflow-hidden rounded-2xl border border-dota-gold/20 px-8 py-12 sm:px-12">
+    <div class="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-dota-gold/10 blur-3xl"></div>
+    <div class="relative z-10 max-w-xl">
+      <span class="mb-3 inline-block rounded bg-dota-red px-3 py-1 text-xs font-black uppercase tracking-widest text-white">
+        Edición limitada
+      </span>
+      <h1 class="mb-3 font-headline text-3xl font-black uppercase leading-tight sm:text-4xl">
+        Abre tu <span class="text-dota-gold">caja</span>, gana skins reales
+      </h1>
+      <p class="max-w-md text-sm text-on-surface-variant">
+        Cada caja entrega un item real de Dota 2 a tu cuenta de la web: puedes canjearlo por
+        trade o venderlo al instante al precio de mercado.
+      </p>
+    </div>
+  </section>
+
+  <div id="state-loading" class="py-20 text-center text-on-surface-variant">Cargando cajas...</div>
+
+  <div id="state-empty" class="hidden py-20 text-center text-on-surface-variant">
+    Todavía no hay cajas disponibles.
+  </div>
+
+  <div id="state-content" class="hidden space-y-10"></div>
+</Layout>
+
+<script>
+  import { getLootBoxes, type LootBoxDto } from "../lib/api";
+
+  const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    Rol: "Cajas de Rol",
+    VIP: "Cajas VIP",
+    Medalla: "Cajas de Medalla",
+    Gratis: "Gratis",
+  };
+
+  const CATEGORY_ORDER = ["Rol", "VIP", "Medalla", "Gratis"];
+
+  function renderBoxCard(box: LootBoxDto): HTMLElement {
+    const card = document.createElement("a");
+    card.href = `/cajas/${encodeURIComponent(box.slug)}`;
+    card.className =
+      "group relative flex flex-col items-center overflow-hidden rounded-lg border border-dota-border bg-surface-container-low p-4 transition hover:border-dota-gold";
+
+    const imageWrap = document.createElement("div");
+    imageWrap.className = "relative mb-3 aspect-square w-full";
+
+    const glow = document.createElement("div");
+    glow.className = "absolute inset-0 rounded-full bg-dota-gold/20 opacity-0 blur-3xl transition group-hover:opacity-40";
+    imageWrap.appendChild(glow);
+
+    if (box.imageUrl) {
+      const img = document.createElement("img");
+      img.src = box.imageUrl;
+      img.alt = box.name;
+      img.className = "relative h-full w-full object-contain p-2 transition duration-500 group-hover:scale-110 group-hover:-translate-y-1";
+      imageWrap.appendChild(img);
+    } else {
+      const placeholder = document.createElement("span");
+      placeholder.className = "relative flex h-full w-full items-center justify-center text-4xl text-dota-border";
+      placeholder.textContent = "📦";
+      imageWrap.appendChild(placeholder);
+    }
+
+    const name = document.createElement("h4");
+    name.className = "font-headline text-center text-sm font-bold uppercase tracking-tight text-on-surface transition group-hover:text-dota-gold";
+    name.textContent = box.name;
+
+    const button = document.createElement("span");
+    button.className =
+      "mt-4 block w-full rounded-md border border-dota-border bg-surface-container-highest py-2 text-center font-label text-xs font-black text-on-surface transition group-hover:bg-dota-gold group-hover:text-surface-container-lowest";
+    button.textContent = box.price > 0 ? soles.format(box.price) : "GRATIS";
+
+    const bottomBar = document.createElement("div");
+    bottomBar.className = "absolute bottom-0 left-0 h-1 w-full bg-dota-gold";
+
+    card.appendChild(imageWrap);
+    card.appendChild(name);
+    card.appendChild(button);
+    card.appendChild(bottomBar);
+    return card;
+  }
+
+  async function main() {
+    const boxes = await getLootBoxes();
+    const contentEl = document.getElementById("state-content");
+
+    if (boxes.length === 0 || !contentEl) {
+      document.getElementById("state-loading")?.classList.add("hidden");
+      document.getElementById("state-empty")?.classList.remove("hidden");
+      return;
+    }
+
+    const byCategory = new Map<string, LootBoxDto[]>();
+    for (const box of boxes) {
+      const list = byCategory.get(box.category) ?? [];
+      list.push(box);
+      byCategory.set(box.category, list);
+    }
+
+    const categories = [...byCategory.keys()].sort(
+      (a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b)
+    );
+
+    for (const category of categories) {
+      const section = document.createElement("section");
+
+      const title = document.createElement("h2");
+      title.className = "mb-4 border-b border-dota-border pb-2 font-headline text-xl font-bold text-on-surface";
+      title.textContent = CATEGORY_LABELS[category] ?? category;
+
+      const grid = document.createElement("div");
+      grid.className = "grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5";
+
+      for (const box of byCategory.get(category) ?? []) {
+        grid.appendChild(renderBoxCard(box));
+      }
+
+      section.appendChild(title);
+      section.appendChild(grid);
+      contentEl.appendChild(section);
+    }
+
+    document.getElementById("state-loading")?.classList.add("hidden");
+    contentEl.classList.remove("hidden");
+  }
+
+  main();
+</script>

@@ -5,6 +5,23 @@ import Layout from "../layouts/Layout.astro";
 <Layout title="Billetera" wide>
   <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
 
+  <div id="state-login-gate" class="hidden flex-col items-center gap-4 rounded-xl border border-dota-border bg-surface-container-low px-8 py-16 text-center">
+    <span class="material-symbols-outlined text-5xl text-dota-gold">lock</span>
+    <div>
+      <h2 class="font-headline text-xl font-bold text-on-surface">Inicia sesión para ver tu billetera</h2>
+      <p class="mt-1 max-w-sm text-sm text-on-surface-variant">
+        Conecta tu cuenta de Steam para ver tu saldo, tus movimientos y pedir retiros.
+      </p>
+    </div>
+    <a
+      id="state-login-gate-link"
+      href="#"
+      class="rounded-lg bg-dota-gold px-6 py-3 font-label text-xs font-bold uppercase tracking-wide text-surface-container-lowest transition hover:brightness-110"
+    >
+      Iniciar sesión con Steam
+    </a>
+  </div>
+
   <div id="state-content" class="hidden grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
     <!-- Saldo + pedir retiro -->
     <section class="space-y-6">
@@ -87,7 +104,7 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-  import { getMe, getWallet, requestWithdrawal, getMyWithdrawals, type WithdrawalDto } from "../lib/api";
+  import { getMe, getWallet, requestWithdrawal, getMyWithdrawals, loginUrl, type WithdrawalDto } from "../lib/api";
 
   const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
   const dateFmt = new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short" });
@@ -190,7 +207,11 @@ import Layout from "../layouts/Layout.astro";
   async function main() {
     const me = await getMe();
     if (!me.authenticated) {
-      window.location.href = "/";
+      hide("state-loading");
+      const link = document.getElementById("state-login-gate-link") as HTMLAnchorElement | null;
+      if (link) link.href = loginUrl(new URL(window.location.pathname, window.location.origin).toString());
+      show("state-login-gate");
+      document.getElementById("state-login-gate")?.classList.add("flex");
       return;
     }
 

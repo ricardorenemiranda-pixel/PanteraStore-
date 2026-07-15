@@ -32,4 +32,15 @@ public abstract class SteamAuthControllerBase : ControllerBase
         unauthorized = null;
         return true;
     }
+
+    /// <summary>Igual que TryGetSteamId pero sin forzar 401: para endpoints publicos donde el
+    /// login es opcional (ej. el detalle de una caja muestra el contador de fidelidad solo si
+    /// hay sesion, pero cualquiera puede ver el contenido).</summary>
+    protected string? TryGetSteamIdOptional()
+    {
+        if (User.Identity?.IsAuthenticated != true) return null;
+
+        var steamId = SteamId.FromOpenIdUrl(User.FindFirst(ClaimTypes.NameIdentifier)?.Value);
+        return steamId.IsValid ? steamId.Value : null;
+    }
 }

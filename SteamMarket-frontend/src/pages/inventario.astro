@@ -3,55 +3,74 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Mi inventario" wide>
-  <div id="state-loading" class="py-20 text-center text-neutral-400">
+  <div id="state-loading" class="py-20 text-center text-on-surface-variant">
     Cargando tu inventario de Dota 2...
   </div>
 
-  <div id="state-redirect" class="hidden py-20 text-center text-neutral-400">
-    Necesitas iniciar sesión con Steam. Redirigiendo...
+  <div id="state-login-gate" class="hidden flex-col items-center gap-4 rounded-xl border border-dota-border bg-surface-container-low px-8 py-16 text-center">
+    <span class="material-symbols-outlined text-5xl text-dota-gold">lock</span>
+    <div>
+      <h2 class="font-headline text-xl font-bold text-on-surface">Inicia sesión para ver tu inventario</h2>
+      <p class="mt-1 max-w-sm text-sm text-on-surface-variant">
+        Conecta tu cuenta de Steam para ver tus items de Dota 2 y venderlos al instante.
+      </p>
+    </div>
+    <a
+      id="state-login-gate-link"
+      href="#"
+      class="rounded-lg bg-dota-gold px-6 py-3 font-label text-xs font-bold uppercase tracking-wide text-surface-container-lowest transition hover:brightness-110"
+    >
+      Iniciar sesión con Steam
+    </a>
   </div>
 
   <div id="state-error" class="hidden rounded-lg border border-dota-red/50 bg-dota-red/10 p-6 text-center">
-    <p id="state-error-message" class="text-neutral-200"></p>
+    <p id="state-error-message" class="text-on-surface"></p>
   </div>
 
-  <div id="state-empty" class="hidden py-20 text-center text-neutral-400">
+  <div id="state-empty" class="hidden py-20 text-center text-on-surface-variant">
     No encontramos Inmortales, Arcanas ni Mythicals intercambiables en tu inventario.
   </div>
 
   <div id="state-content" class="hidden">
-    <div class="mb-3 flex items-center justify-between text-xs text-neutral-500">
-      <span id="last-updated"></span>
-      <button
-        id="btn-refresh"
-        class="rounded border border-dota-gold/40 bg-dota-gold/10 px-3 py-1 text-xs font-medium text-dota-gold transition hover:bg-dota-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Actualizar
-      </button>
+    <div class="mb-4 flex items-center justify-between">
+      <h1 class="font-headline text-2xl font-black uppercase text-on-surface">Mi inventario</h1>
+      <div class="flex items-center gap-3 font-label text-xs text-on-surface-variant">
+        <span id="last-updated"></span>
+        <button
+          id="btn-refresh"
+          class="rounded-lg border border-dota-gold/40 bg-dota-gold/10 px-3 py-1.5 font-label text-xs font-bold uppercase text-dota-gold transition hover:bg-dota-gold/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Actualizar
+        </button>
+      </div>
     </div>
 
-    <div class="mb-4 flex flex-wrap gap-2 rounded-lg border border-dota-border bg-dota-panel p-3">
-      <input
-        id="filter-search"
-        type="text"
-        placeholder="Buscar por nombre"
-        class="min-w-[180px] flex-1 rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 placeholder:text-neutral-500 focus:border-dota-gold/50 focus:outline-none"
-      />
+    <div class="mb-6 flex flex-wrap gap-2 rounded-xl border border-dota-border bg-surface-container-low p-3">
+      <div class="relative min-w-[180px] flex-1">
+        <span class="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base text-on-surface-variant">search</span>
+        <input
+          id="filter-search"
+          type="text"
+          placeholder="Buscar por nombre"
+          class="w-full rounded-lg border border-dota-border bg-surface py-1.5 pl-9 pr-3 text-sm text-on-surface placeholder:text-on-surface-variant focus:border-dota-gold/50 focus:outline-none"
+        />
+      </div>
       <select
         id="filter-hero"
-        class="rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+        class="rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
       >
         <option value="">Héroe (todos)</option>
       </select>
       <select
         id="filter-tipo"
-        class="rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+        class="rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
       >
         <option value="">Tipo (todos)</option>
       </select>
       <select
         id="filter-sort"
-        class="rounded border border-dota-border bg-dota-bg px-3 py-1.5 text-sm text-neutral-200 focus:border-dota-gold/50 focus:outline-none"
+        class="rounded-lg border border-dota-border bg-surface px-3 py-1.5 text-sm text-on-surface focus:border-dota-gold/50 focus:outline-none"
       >
         <option value="">Orden (por defecto)</option>
         <option value="price-desc">Precio: más caros primero</option>
@@ -62,8 +81,8 @@ import Layout from "../layouts/Layout.astro";
     <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
       <section class="min-w-0">
         <div class="mb-2 flex items-center justify-between">
-          <h2 class="font-semibold text-neutral-200">Tu inventario</h2>
-          <span id="inventory-count" class="text-xs text-neutral-500"></span>
+          <h2 class="font-headline font-bold uppercase tracking-tight text-on-surface">Tu inventario</h2>
+          <span id="inventory-count" class="font-label text-xs text-on-surface-variant"></span>
         </div>
         <div
           id="inventory-grid"
@@ -73,43 +92,43 @@ import Layout from "../layouts/Layout.astro";
 
       <section class="min-w-0">
         <div
-          class="mb-2 flex items-center justify-between rounded-lg border border-dota-gold/40 bg-dota-gold/10 px-3 py-2"
+          class="mb-2 flex items-center justify-between rounded-xl border border-dota-gold/40 bg-dota-gold/10 px-4 py-3"
         >
-          <h2 class="font-semibold text-dota-gold">A vender</h2>
-          <span id="cart-total" class="text-lg font-semibold text-dota-gold">S/ 0.00</span>
+          <h2 class="font-headline font-bold uppercase tracking-tight text-dota-gold">A vender</h2>
+          <span id="cart-total" class="font-label text-lg font-bold text-dota-gold">S/ 0.00</span>
         </div>
         <div
           id="cart-grid"
           class="grid max-h-[75vh] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 xl:grid-cols-4"
         ></div>
-        <p id="cart-empty-hint" class="mt-3 text-center text-xs text-neutral-500">
+        <p id="cart-empty-hint" class="mt-3 text-center text-xs text-on-surface-variant">
           Haz click en un item de tu inventario para agregarlo acá.
         </p>
 
         <button
           id="btn-confirm-sale"
-          class="mt-3 hidden w-full rounded-md bg-dota-red px-4 py-2 text-sm font-medium text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          class="mt-3 hidden w-full rounded-xl bg-dota-red px-4 py-3 font-label text-sm font-bold uppercase tracking-wide text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Confirmar venta
         </button>
         <p id="sale-error" class="mt-2 hidden text-center text-sm text-dota-red"></p>
 
-        <div id="sale-success" class="mt-3 hidden rounded-lg border border-dota-gold/40 bg-dota-gold/10 p-3 text-sm">
+        <div id="sale-success" class="mt-3 hidden rounded-xl border border-dota-gold/40 bg-dota-gold/10 p-4 text-sm">
           <div id="sale-success-bot">
-            <p class="font-medium text-dota-gold">¡Venta confirmada! Te mandamos la oferta a Steam.</p>
-            <p class="mt-1 text-neutral-300">
+            <p class="font-bold text-dota-gold">¡Venta confirmada! Te mandamos la oferta a Steam.</p>
+            <p class="mt-1 text-on-surface-variant">
               Abre Steam (o la app móvil) y acepta la oferta de intercambio que te llegó — no
               tienes que armar nada, ya viene con los items exactos.
             </p>
-            <p class="mt-2 text-xs text-neutral-500">
+            <p class="mt-2 text-xs text-on-surface-variant">
               Tu saldo se acredita solo apenas la aceptes. Puedes revisar el estado en tu
               <a href="/billetera" class="text-dota-gold underline underline-offset-2">billetera</a>.
             </p>
           </div>
           <div id="sale-success-manual" class="hidden">
-            <p class="font-medium text-dota-gold">¡Venta confirmada! Orden pendiente.</p>
-            <p id="sale-bot-error" class="mt-1 hidden text-xs text-neutral-500"></p>
-            <p class="mt-1 text-neutral-300">
+            <p class="font-bold text-dota-gold">¡Venta confirmada! Orden pendiente.</p>
+            <p id="sale-bot-error" class="mt-1 hidden text-xs text-on-surface-variant"></p>
+            <p class="mt-1 text-on-surface-variant">
               Manda tus items por trade a nuestra cuenta para que se procese:
             </p>
             <a
@@ -117,11 +136,11 @@ import Layout from "../layouts/Layout.astro";
               href="#"
               target="_blank"
               rel="noopener"
-              class="mt-2 inline-block rounded-md bg-dota-gold px-3 py-1.5 text-xs font-semibold text-black transition hover:brightness-110"
+              class="mt-2 inline-block rounded-lg bg-dota-gold px-3 py-1.5 text-xs font-bold text-surface-container-lowest transition hover:brightness-110"
             >
               Abrir Trade URL
             </a>
-            <p class="mt-2 text-xs text-neutral-500">
+            <p class="mt-2 text-xs text-on-surface-variant">
               Tu saldo se acredita apenas confirmemos que recibimos el trade. Puedes revisar el
               estado en tu <a href="/billetera" class="text-dota-gold underline underline-offset-2">billetera</a>.
             </p>
@@ -133,7 +152,7 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-  import { getMe, getDotaInventory, createSellOrder, type InventoryItemDto } from "../lib/api";
+  import { getMe, getDotaInventory, createSellOrder, loginUrl, type InventoryItemDto } from "../lib/api";
 
   const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
 
@@ -220,31 +239,42 @@ import Layout from "../layouts/Layout.astro";
     });
   }
 
+  // Clase de "glow" de borde por rareza (definidas en global.css). Arcana no tiene su propio
+  // glow en el sistema de rareza compartido con las cajas, asi que usa el mismo dorado que
+  // Immortal (igual criterio que displayRarity: Arcana es la Quality mas alta que mostramos).
+  const RARITY_GLOW_CLASS: Record<string, string> = {
+    Immortal: "rarity-glow-immortal",
+    Arcana: "rarity-glow-immortal",
+    Mythical: "rarity-glow-mythical",
+  };
+
   function renderCard(item: InventoryItemDto): HTMLElement {
+    const tipo = displayRarity(item);
+
     const card = document.createElement("article");
-    card.className =
-      "flex h-full cursor-pointer flex-col gap-1.5 rounded-lg border border-dota-border bg-dota-panel p-2 transition hover:border-dota-gold/50";
+    card.className = [
+      "group flex h-full cursor-pointer flex-col gap-1.5 overflow-hidden rounded-lg border border-t-2 border-dota-border bg-surface-container-low p-2 transition hover:-translate-y-0.5",
+      tipo ? RARITY_GLOW_CLASS[tipo] ?? "" : "",
+    ].join(" ");
 
     // Siempre reservamos el mismo espacio para la imagen (haya o no iconUrl), asi todas las
     // tarjetas miden lo mismo aunque a un item le falte el icono.
+    const imageWrap = document.createElement("div");
+    imageWrap.className = "aspect-square w-full overflow-hidden rounded bg-surface";
     if (item.iconUrl) {
       const img = document.createElement("img");
       img.src = item.iconUrl;
       img.alt = item.name;
       img.loading = "lazy";
-      img.className = "aspect-square w-full object-contain";
-      card.appendChild(img);
-    } else {
-      const placeholder = document.createElement("div");
-      placeholder.className = "aspect-square w-full rounded bg-dota-bg";
-      card.appendChild(placeholder);
+      img.className = "h-full w-full object-contain transition duration-300 group-hover:scale-110";
+      imageWrap.appendChild(img);
     }
+    card.appendChild(imageWrap);
 
-    const tipo = displayRarity(item);
     if (tipo) {
       const badge = document.createElement("p");
       badge.textContent = tipo;
-      badge.className = "text-center text-xs font-bold uppercase tracking-wide";
+      badge.className = "text-center text-[10px] font-bold uppercase tracking-widest";
       badge.style.color = RARITY_COLORS[tipo] ?? "#ffffff";
       card.appendChild(badge);
     }
@@ -254,17 +284,16 @@ import Layout from "../layouts/Layout.astro";
     // min-h reserva el alto de 2 lineas siempre (line-clamp-2 recorta, pero un nombre de 1 sola
     // linea no encogia la tarjeta antes); flex+items-center centra el texto cuando es 1 linea.
     name.className =
-      "flex min-h-[2.5rem] items-center justify-center line-clamp-2 text-center text-sm font-medium text-neutral-100";
+      "flex min-h-[2.5rem] items-center justify-center line-clamp-2 text-center text-sm font-medium text-on-surface";
     card.appendChild(name);
 
     const priceEl = document.createElement("p");
     if (item.payoutPrice != null) {
       priceEl.textContent = soles.format(item.payoutPrice);
-      priceEl.className =
-        "mt-1 rounded bg-green-600 px-2 py-1 text-center text-sm font-bold text-white";
+      priceEl.className = "mt-1 text-center font-label text-sm font-bold text-dota-gold";
     } else {
       priceEl.textContent = "Sin cotizar";
-      priceEl.className = "mt-1 text-center text-sm font-semibold text-neutral-500";
+      priceEl.className = "mt-1 text-center text-sm font-semibold text-on-surface-variant";
     }
     card.appendChild(priceEl);
 
@@ -488,8 +517,10 @@ import Layout from "../layouts/Layout.astro";
     const me = await getMe();
     if (!me.authenticated) {
       hide("state-loading");
-      show("state-redirect");
-      window.location.href = "/";
+      const link = document.getElementById("state-login-gate-link") as HTMLAnchorElement | null;
+      if (link) link.href = loginUrl(new URL(window.location.pathname, window.location.origin).toString());
+      show("state-login-gate");
+      document.getElementById("state-login-gate")?.classList.add("flex");
       return;
     }
 

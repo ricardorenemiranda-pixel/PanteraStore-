@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<ISellOrderService, SellOrderService>();
         services.AddScoped<IWalletService, WalletService>();
         services.AddScoped<IAdminAccountService, AdminAccountService>();
+        services.AddScoped<ILootBoxService, LootBoxService>();
 
         // PricingOptions se llena desde appsettings.json ("Pricing") y se comparte como singleton:
         // tanto InventoryService (Application) como SteamMarketPriceProvider (Infrastructure) la usan.

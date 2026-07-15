@@ -122,6 +122,76 @@ export interface AdminAccountDto {
   addedAtUtc: string | null;
 }
 
+// --- Cajas (loot boxes) ---
+
+export interface LootBoxDto {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  price: number;
+  maxItemPrice: number | null;
+  imageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface WarehouseItemDto {
+  marketHashName: string;
+  displayName: string;
+  hero: string | null;
+  type: string;
+  rarity: string;
+  imageUrl: string | null;
+  quantity: number;
+  price: number | null;
+}
+
+export interface LootBoxPoolItemDto {
+  id: string;
+  marketHashName: string;
+  displayName: string;
+  hero: string | null;
+  slot: string | null;
+  type: string;
+  rarity: string;
+  imageUrl: string | null;
+  weight: number;
+}
+
+export interface LootBoxDetailDto {
+  box: LootBoxDto;
+  contents: LootBoxPoolItemDto[];
+  pityCount: number;
+}
+
+export interface LootBoxWinDto {
+  id: string;
+  boxName: string;
+  itemName: string;
+  itemImageUrl: string | null;
+  rarity: string;
+  status: "Reserved" | "PendingRedeem" | "Sold" | "Redeemed";
+  wonAtUtc: string;
+  resolvedAtUtc: string | null;
+}
+
+export interface LootBoxOpenResponse {
+  success: boolean;
+  error?: string;
+  win?: LootBoxWinDto;
+  wasFree?: boolean;
+  pityCount?: number;
+}
+
+export interface LootBoxDemoResponse {
+  success: boolean;
+  error?: string;
+  item?: LootBoxPoolItemDto;
+}
+
+export const PITY_THRESHOLD = 9;
+
 const jsonHeaders = { Accept: "application/json" };
 
 /** URL a la que hay que mandar al navegador (no es fetch, es un redirect completo). */
@@ -272,6 +342,67 @@ export async function getMyWithdrawals(): Promise<WithdrawalDto[]> {
   return (await res.json()) as WithdrawalDto[];
 }
 
+export async function getLootBoxes(): Promise<LootBoxDto[]> {
+  const res = await fetch("/api/lootboxes", { headers: jsonHeaders });
+  if (!res.ok) return [];
+  return (await res.json()) as LootBoxDto[];
+}
+
+export async function getLootBoxDetail(slug: string): Promise<LootBoxDetailDto | null> {
+  const res = await fetch(`/api/lootboxes/${encodeURIComponent(slug)}`, {
+    credentials: "include",
+    headers: jsonHeaders,
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as LootBoxDetailDto;
+}
+
+export async function demoOpenLootBox(slug: string): Promise<LootBoxDemoResponse> {
+  const res = await fetch(`/api/lootboxes/${encodeURIComponent(slug)}/demo`, {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders,
+  });
+  if (!res.ok) return { success: false, error: await extractError(res) };
+  return (await res.json()) as LootBoxDemoResponse;
+}
+
+export async function openLootBox(slug: string): Promise<LootBoxOpenResponse> {
+  const res = await fetch(`/api/lootboxes/${encodeURIComponent(slug)}/open`, {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders,
+  });
+  if (!res.ok) return { success: false, error: await extractError(res) };
+  return (await res.json()) as LootBoxOpenResponse;
+}
+
+export async function getMyLootBoxWins(): Promise<LootBoxWinDto[]> {
+  const res = await fetch("/api/lootboxes/me/wins", { credentials: "include", headers: jsonHeaders });
+  if (!res.ok) return [];
+  return (await res.json()) as LootBoxWinDto[];
+}
+
+export async function sellLootBoxWin(id: string): Promise<{ error: string | null; creditedAmount?: number }> {
+  const res = await fetch(`/api/lootboxes/wins/${id}/sell`, {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders,
+  });
+  if (!res.ok) return { error: await extractError(res) };
+  const body = await res.json();
+  return { error: null, creditedAmount: body.creditedAmount };
+}
+
+export async function redeemLootBoxWin(id: string): Promise<string | null> {
+  const res = await fetch(`/api/lootboxes/wins/${id}/redeem`, {
+    method: "POST",
+    credentials: "include",
+    headers: jsonHeaders,
+  });
+  return res.ok ? null : await extractError(res);
+}
+
 // --- Admin ---
 
 export async function getPendingOrders(): Promise<SellOrderDto[]> {
@@ -319,6 +450,67 @@ export async function rejectWithdrawal(id: string): Promise<string | null> {
     method: "POST",
     credentials: "include",
     headers: jsonHeaders,
+  });
+  return res.ok ? null : await extractError(res);
+}
+
+// --- Admin: catalogo de cajas y almacen ---
+
+export async function getAdminLootBoxes(): Promise<LootBoxDto[]> {
+  const res = await fetch("/api/admin/lootboxes", { credentials: "include", headers: jsonHeaders });
+  if (!res.ok) return [];
+  return (await res.json()) as LootBoxDto[];
+}
+
+export async function saveLootBox(input: {
+  slug: string;
+  name: string;
+  category: string;
+  price: number;
+  maxItemPrice: number | null;
+  imageUrl: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}): Promise<string | null> {
+  const res = await fetch("/api/admin/lootboxes", {
+    method: "POST",
+    credentials: "include",
+    headers: { ...jsonHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return res.ok ? null : await extractError(res);
+}
+
+export async function getAdminLootBoxItems(slug: string): Promise<LootBoxPoolItemDto[]> {
+  const res = await fetch(`/api/admin/lootboxes/${encodeURIComponent(slug)}/items`, {
+    credentials: "include",
+    headers: jsonHeaders,
+  });
+  if (!res.ok) return [];
+  return (await res.json()) as LootBoxPoolItemDto[];
+}
+
+export async function removeLootBoxItem(itemId: string): Promise<string | null> {
+  const res = await fetch(`/api/admin/lootboxes/items/${itemId}`, {
+    method: "DELETE",
+    credentials: "include",
+    headers: jsonHeaders,
+  });
+  return res.ok ? null : await extractError(res);
+}
+
+export async function getWarehouse(): Promise<WarehouseItemDto[]> {
+  const res = await fetch("/api/admin/warehouse", { credentials: "include", headers: jsonHeaders });
+  if (!res.ok) return [];
+  return (await res.json()) as WarehouseItemDto[];
+}
+
+export async function addLootBoxItemFromStock(slug: string, marketHashName: string): Promise<string | null> {
+  const res = await fetch(`/api/admin/lootboxes/${encodeURIComponent(slug)}/items/from-stock`, {
+    method: "POST",
+    credentials: "include",
+    headers: { ...jsonHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ marketHashName }),
   });
   return res.ok ? null : await extractError(res);
 }

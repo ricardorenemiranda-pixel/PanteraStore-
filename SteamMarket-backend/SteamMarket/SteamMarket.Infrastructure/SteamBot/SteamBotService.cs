@@ -40,6 +40,7 @@ public sealed class SteamBotService : BackgroundService, ISteamBotService
     private volatile bool _isReady;
 
     public bool IsReady => _isReady;
+    public string? BotSteamId64 => _steamId64;
 
     public SteamBotService(BotOptions options, ILogger<SteamBotService> logger)
     {
@@ -139,11 +140,45 @@ public sealed class SteamBotService : BackgroundService, ISteamBotService
         _logger.LogInformation("Bot: sesion iniciada como {SteamId}.", _steamId64);
     }
 
-    public async Task<SendTradeOfferResult> SendTradeOfferAsync(
+    public Task<SendTradeOfferResult> SendTradeOfferAsync(
         string recipientSteamId64,
         string recipientTradeUrl,
         IReadOnlyList<string> assetIds,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        SendAsync(
+            recipientSteamId64,
+            recipientTradeUrl,
+            meAssetIds: Array.Empty<string>(),
+            themAssetIds: assetIds,
+            message: "Oferta automatica de SteamMarket por tu venta confirmada.",
+            ct);
+
+    public Task<SendTradeOfferResult> SendGiftTradeOfferAsync(
+        string recipientSteamId64,
+        string recipientTradeUrl,
+        IReadOnlyList<string> botAssetIds,
+        CancellationToken ct = default) =>
+        SendAsync(
+            recipientSteamId64,
+            recipientTradeUrl,
+            meAssetIds: botAssetIds,
+            themAssetIds: Array.Empty<string>(),
+            message: "Tu premio de una caja de SteamMarket. Acepta el intercambio para recibirlo.",
+            ct);
+
+    /// <summary>
+    /// Arma y manda la oferta de intercambio. meAssetIds = lo que pone el BOT (lo que le da al
+    /// usuario, ej. un premio de caja); themAssetIds = lo que le PIDE al usuario (ej. una venta
+    /// confirmada). Los dos casos usan exactamente el mismo endpoint, solo cambia que lado del
+    /// JSON lleva los assets.
+    /// </summary>
+    private async Task<SendTradeOfferResult> SendAsync(
+        string recipientSteamId64,
+        string recipientTradeUrl,
+        IReadOnlyList<string> meAssetIds,
+        IReadOnlyList<string> themAssetIds,
+        string message,
+        CancellationToken ct)
     {
         if (!_isReady || _steamId64 is null || _accessToken is null || _sessionId is null)
             return new SendTradeOfferResult(false, "El bot de Steam no tiene una sesion activa ahora mismo.", null);
@@ -154,9 +189,13 @@ public sealed class SteamBotService : BackgroundService, ISteamBotService
 
         var payload = new TradeOfferJson
         {
+            Me = new TradeOfferSide
+            {
+                Assets = meAssetIds.Select(id => new TradeOfferAsset { AssetId = id }).ToList(),
+            },
             Them = new TradeOfferSide
             {
-                Assets = assetIds.Select(id => new TradeOfferAsset { AssetId = id }).ToList(),
+                Assets = themAssetIds.Select(id => new TradeOfferAsset { AssetId = id }).ToList(),
             },
         };
 
@@ -167,7 +206,7 @@ public sealed class SteamBotService : BackgroundService, ISteamBotService
             ["sessionid"] = _sessionId,
             ["serverid"] = "1",
             ["partner"] = recipientSteamId64,
-            ["tradeoffermessage"] = "Oferta automatica de SteamMarket por tu venta confirmada.",
+            ["tradeoffermessage"] = message,
             ["json_tradeoffer"] = JsonSerializer.Serialize(payload),
             ["captcha"] = "",
             ["trade_offer_create_params"] = JsonSerializer.Serialize(createParams),

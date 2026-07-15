@@ -20,14 +20,19 @@ public enum BotTradeOfferState
 public sealed record SendTradeOfferResult(bool Success, string? Error, ulong? TradeOfferId);
 
 /// <summary>
-/// Puerto hacia la cuenta bot de Steam: arma y manda ofertas de intercambio pidiendo items
-/// (sin dar nada a cambio) y consulta su estado. La implementacion real (Infrastructure) usa
-/// una sesion persistente contra la red de Steam; ver SteamBotService.
+/// Puerto hacia la cuenta bot de Steam: arma y manda ofertas de intercambio (pidiendo items o
+/// entregandolos) y consulta su estado. La implementacion real (Infrastructure) usa una sesion
+/// persistente contra la red de Steam; ver SteamBotService.
 /// </summary>
 public interface ISteamBotService
 {
     /// <summary>True si el bot logro iniciar sesion y tiene una sesion web utilizable ahora mismo.</summary>
     bool IsReady { get; }
+
+    /// <summary>SteamID64 de la cuenta bot (null si todavia no inicio sesion). Se usa para leer
+    /// su inventario real via ISteamInventoryClient y saber que stock hay disponible para las
+    /// cajas (ver LootBoxService).</summary>
+    string? BotSteamId64 { get; }
 
     /// <summary>
     /// Arma y envia una oferta de intercambio desde la cuenta bot hacia recipientSteamId64,
@@ -38,6 +43,17 @@ public interface ISteamBotService
         string recipientSteamId64,
         string recipientTradeUrl,
         IReadOnlyList<string> assetIds,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Igual que SendTradeOfferAsync pero al reves: el bot ENTREGA los botAssetIds (items de su
+    /// propio inventario) al usuario, sin pedirle nada a cambio. Se usa para canjear un premio
+    /// ganado en una caja (ver LootBoxService.RedeemWinAsync).
+    /// </summary>
+    Task<SendTradeOfferResult> SendGiftTradeOfferAsync(
+        string recipientSteamId64,
+        string recipientTradeUrl,
+        IReadOnlyList<string> botAssetIds,
         CancellationToken ct = default);
 
     /// <summary>Consulta el estado actual de una oferta ya enviada. Null si no se pudo consultar.</summary>

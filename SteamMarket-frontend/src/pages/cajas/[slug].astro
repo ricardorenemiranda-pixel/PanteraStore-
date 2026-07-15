@@ -1,0 +1,504 @@
+---
+import Layout from "../../layouts/Layout.astro";
+
+// El sitio es 100% estatico (Astro output: "static", sin adapter): las rutas dinamicas
+// necesitan que Astro sepa TODOS los slugs posibles al momento del build, no puede
+// descubrirlos recien cuando alguien visita la pagina. Por eso esta lista repite a mano los
+// slugs del seed inicial (ver Program.cs -> SeedLootBoxesAsync en el backend): el contenido
+// real de cada caja SI se trae en vivo del backend (ver el <script> mas abajo), solo la
+// EXISTENCIA de la ruta esta fija. Si el admin crea una caja nueva desde /admin con un slug
+// que no esta en esta lista, hay que agregarlo aca y volver a desplegar el frontend para que
+// tenga una pagina propia.
+export function getStaticPaths() {
+  const slugs = [
+    "carry", "support", "midlaner", "offlaner", "hard-support",
+    "buti", "macarius", "gloglo-king", "techisor", "daad", "papicha",
+    "heraldo", "guardian", "cruzado", "arconte", "leyenda", "ancient",
+    "la-gratis", "redes-sociales", "super-fan", "la-chismosa",
+  ];
+  return slugs.map((slug) => ({ params: { slug } }));
+}
+
+const { slug } = Astro.params;
+---
+
+<Layout title="Caja">
+  <div id="state-loading" class="py-20 text-center text-on-surface-variant">Cargando caja...</div>
+
+  <div id="state-error" class="hidden rounded-lg border border-dota-red/50 bg-dota-red/10 p-6 text-center">
+    <p id="state-error-message" class="text-on-surface"></p>
+  </div>
+
+  <div id="state-content" class="hidden space-y-10">
+    <!-- Encabezado de la caja -->
+    <div class="flex flex-col items-center gap-4 text-center">
+      <div
+        id="box-image-wrap"
+        class="relative flex h-40 w-40 items-center justify-center rounded-xl border-2 border-dota-gold/30 bg-surface-container-low shadow-[0_0_30px_rgba(240,185,11,0.15)]"
+      >
+        <span class="text-6xl text-dota-border">📦</span>
+      </div>
+      <h1 id="box-name" class="font-headline text-3xl font-black uppercase tracking-tight text-on-surface"></h1>
+
+      <!-- Ruleta: se muestra solo mientras gira, justo despues de tocar "Abrir"/"Prueba gratis" -->
+      <div
+        id="spin-wrap"
+        class="glass-panel relative hidden h-48 w-full max-w-3xl items-center overflow-hidden rounded-xl border-2 border-dota-gold/20"
+      >
+        <div class="pointer-events-none absolute left-1/2 top-0 z-20 h-full w-1 -translate-x-1/2 bg-dota-gold/50"></div>
+        <div class="pointer-events-none absolute left-1/2 top-0 z-20 h-4 w-8 -translate-x-1/2 rounded-b-full bg-dota-gold shadow-[0_0_15px_#f0b90b]"></div>
+        <div class="pointer-events-none absolute bottom-0 left-1/2 z-20 h-4 w-8 -translate-x-1/2 rounded-t-full bg-dota-gold shadow-[0_0_15px_#f0b90b]"></div>
+        <div id="spin-track" class="flex h-full items-center gap-3 px-3"></div>
+      </div>
+
+      <!-- Login gate -->
+      <div id="login-gate" class="hidden max-w-md rounded-lg border border-dota-border bg-surface-container-low p-4 text-sm text-on-surface-variant">
+        Inicia sesión para abrir esta caja.
+        <a id="login-gate-link" href="#" class="ml-2 font-bold text-dota-gold hover:underline">Iniciar sesión con Steam</a>
+      </div>
+
+      <!-- Acciones (solo con sesion) -->
+      <div id="box-actions" class="hidden flex-col items-center gap-4">
+        <div class="flex flex-wrap items-center justify-center gap-4">
+          <button
+            id="btn-demo"
+            class="rounded-xl border border-dota-border bg-surface-container-highest px-6 py-3 font-label text-xs font-black uppercase tracking-widest text-on-surface transition hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Prueba gratis
+          </button>
+          <button
+            id="btn-open"
+            class="rounded-xl bg-dota-gold px-10 py-4 font-headline text-lg font-black uppercase tracking-wide text-surface-container-lowest shadow-[0_0_25px_rgba(240,185,11,0.35)] transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          ></button>
+        </div>
+
+        <!-- Contador de fidelidad: 9 casillas, una por compra (ver PITY_THRESHOLD) -->
+        <div class="w-full max-w-sm">
+          <div class="mb-2 flex justify-between font-label text-xs text-on-surface-variant">
+            <span id="pity-label">0/9</span>
+            <span>Compra 9, recibe 1 gratis</span>
+          </div>
+          <div id="pity-segments" class="flex gap-1.5"></div>
+        </div>
+
+        <p id="open-error" class="hidden text-sm font-medium text-dota-red"></p>
+      </div>
+    </div>
+
+    <!-- Resultado de abrir/probar (overlay tipo modal) -->
+    <div id="result-panel" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-6 backdrop-blur-md">
+      <div
+        id="result-card"
+        class="glass-panel relative w-full max-w-md overflow-hidden rounded-3xl border-2 border-dota-gold p-10 text-center shadow-[0_0_40px_rgba(240,185,11,0.25)]"
+      >
+        <div id="result-beam" class="pointer-events-none absolute inset-0 animate-[spin_10s_linear_infinite] opacity-15 blur-3xl"></div>
+
+        <button
+          id="btn-close-result"
+          class="absolute right-5 top-5 z-10 text-on-surface-variant transition hover:text-on-surface"
+          aria-label="Cerrar"
+        >
+          <span class="material-symbols-outlined">close</span>
+        </button>
+
+        <p id="result-label" class="relative z-10 mb-2 font-label text-xs uppercase tracking-widest text-dota-gold"></p>
+        <div id="result-image-wrap" class="relative z-10 mx-auto mb-4 flex h-40 w-40 items-center justify-center"></div>
+        <p id="result-name" class="relative z-10 font-headline text-xl font-bold text-on-surface"></p>
+        <p id="result-rarity" class="relative z-10 mt-1 text-sm font-bold uppercase"></p>
+
+        <div id="result-win-actions" class="relative z-10 mt-6 hidden justify-center gap-3">
+          <button id="btn-sell" class="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:brightness-110">
+            Vender a la web
+          </button>
+          <button id="btn-redeem" class="rounded-xl border border-dota-gold/50 bg-dota-gold/10 px-5 py-3 text-sm font-bold text-dota-gold transition hover:bg-dota-gold/20">
+            Canjear por Steam
+          </button>
+        </div>
+        <p id="result-action-message" class="relative z-10 mt-4 hidden text-sm"></p>
+      </div>
+    </div>
+
+    <!-- Contenido de la caja -->
+    <div>
+      <h2 class="mb-4 font-headline text-xl font-bold text-on-surface">Contenido de la caja</h2>
+      <div
+        id="contents-body"
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"
+      ></div>
+      <p id="contents-empty" class="hidden rounded-lg border border-dota-border bg-surface-container-low px-4 py-6 text-center text-sm text-on-surface-variant">
+        Esta caja todavía no tiene contenido configurado.
+      </p>
+    </div>
+  </div>
+</Layout>
+
+<script define:vars={{ slug }}>
+  window.__lootBoxSlug = slug;
+</script>
+
+<script>
+  import {
+    getMe,
+    loginUrl,
+    getLootBoxDetail,
+    demoOpenLootBox,
+    openLootBox,
+    sellLootBoxWin,
+    redeemLootBoxWin,
+    PITY_THRESHOLD,
+    type LootBoxPoolItemDto,
+  } from "../../lib/api";
+
+  const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+
+  const RARITY_COLORS: Record<string, string> = {
+    Immortal: "#E4AE39",
+    Arcana: "#ADE55C",
+    Mythical: "#8847FF",
+    Legendary: "#D2440D",
+  };
+
+  function show(id: string) {
+    document.getElementById(id)?.classList.remove("hidden");
+  }
+  function hide(id: string) {
+    document.getElementById(id)?.classList.add("hidden");
+  }
+
+  document.getElementById("btn-close-result")?.addEventListener("click", () => hide("result-panel"));
+
+  function renderItemImage(container: HTMLElement, item: { imageUrl: string | null; displayName?: string; name?: string }) {
+    container.innerHTML = "";
+    if (item.imageUrl) {
+      const img = document.createElement("img");
+      img.src = item.imageUrl;
+      img.alt = item.displayName ?? item.name ?? "";
+      img.className = "h-full w-full object-contain";
+      container.appendChild(img);
+    } else {
+      const placeholder = document.createElement("span");
+      placeholder.className = "text-4xl text-dota-border";
+      placeholder.textContent = "🎁";
+      container.appendChild(placeholder);
+    }
+  }
+
+  // --- Ruleta ---
+  // Cada casilla mide 96px (w-24) + 12px de separacion (gap-3) = 108px. Si cambias las clases
+  // de #spin-track o de las casillas, actualiza ITEM_WIDTH para que el calculo de frenado siga
+  // cuadrando exactamente con el item ganador.
+  const ITEM_WIDTH = 108;
+  const SPIN_ITEM_COUNT = 40;
+  const WIN_INDEX = 34; // deja "carril" suficiente antes de frenar, sin pasarse de largo.
+
+  function buildSpinTile(item: { imageUrl: string | null; displayName?: string; name?: string; rarity: string }): HTMLElement {
+    const tile = document.createElement("div");
+    tile.className = "flex h-full w-24 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border-b-4 bg-surface-container-high p-2";
+    tile.style.borderColor = RARITY_COLORS[item.rarity] ?? "#4b5563";
+
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "flex h-16 w-16 items-center justify-center";
+    renderItemImage(imgWrap, item);
+    tile.appendChild(imgWrap);
+
+    return tile;
+  }
+
+  /**
+   * Arma el carril con SPIN_ITEM_COUNT casillas (rellenas al azar con el contenido de la caja,
+   * solo para el efecto visual) y coloca el item que YA gano (decidido por el servidor) en
+   * WIN_INDEX. Anima el desplazamiento con una curva de frenado y resuelve la Promise recien
+   * cuando el carril termina de moverse, para recien ahi mostrar el resultado.
+   */
+  async function runSpin(
+    winningItem: { imageUrl: string | null; displayName: string; rarity: string },
+    pool: LootBoxPoolItemDto[]
+  ) {
+    const wrap = document.getElementById("spin-wrap");
+    const track = document.getElementById("spin-track");
+    if (!wrap || !track) return;
+
+    track.style.transition = "none";
+    track.style.transform = "translateX(0px)";
+    track.innerHTML = "";
+
+    for (let i = 0; i < SPIN_ITEM_COUNT; i++) {
+      const filler = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : winningItem;
+      track.appendChild(buildSpinTile(i === WIN_INDEX ? winningItem : filler));
+    }
+
+    show("spin-wrap");
+    wrap.classList.add("flex");
+
+    // Esperamos dos frames para que el navegador aplique "transition: none" y la posicion en 0
+    // ANTES de prender la animacion; si no, a veces el navegador junta ambos cambios y no anima.
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+    const containerWidth = wrap.clientWidth;
+    const targetX = -(WIN_INDEX * ITEM_WIDTH) + containerWidth / 2 - ITEM_WIDTH / 2;
+
+    await new Promise<void>((resolve) => {
+      track.style.transition = "transform 4s cubic-bezier(0.1, 0.85, 0.15, 1)";
+      track.addEventListener("transitionend", () => resolve(), { once: true });
+      track.style.transform = `translateX(${targetX}px)`;
+    });
+
+    // Pausa corta para que se alcance a "leer" donde freno antes de saltar al modal de resultado.
+    await new Promise((r) => setTimeout(r, 400));
+
+    hide("spin-wrap");
+    wrap.classList.remove("flex");
+  }
+
+  function renderPitySegments() {
+    const wrap = document.getElementById("pity-segments");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    for (let i = 0; i < PITY_THRESHOLD; i++) {
+      const seg = document.createElement("div");
+      seg.className = "h-3 flex-1 rounded-full bg-surface-container-high transition-colors";
+      seg.dataset.segment = String(i);
+      wrap.appendChild(seg);
+    }
+  }
+
+  function updatePityUi(pityCount: number) {
+    const label = document.getElementById("pity-label");
+    if (label) label.textContent = `${pityCount}/${PITY_THRESHOLD}`;
+
+    const segments = document.querySelectorAll("#pity-segments > div");
+    segments.forEach((seg, i) => {
+      const filled = i < pityCount;
+      seg.className = filled
+        ? "h-3 flex-1 rounded-full bg-dota-gold shadow-[0_0_8px_rgba(240,185,11,0.6)] transition-colors"
+        : "h-3 flex-1 rounded-full bg-surface-container-high transition-colors";
+    });
+  }
+
+  function renderResult(item: LootBoxPoolItemDto, label: string) {
+    const resultLabel = document.getElementById("result-label");
+    const resultName = document.getElementById("result-name");
+    const resultRarity = document.getElementById("result-rarity");
+    const imageWrap = document.getElementById("result-image-wrap");
+    const card = document.getElementById("result-card") as HTMLElement | null;
+    const beam = document.getElementById("result-beam") as HTMLElement | null;
+
+    const color = RARITY_COLORS[item.rarity] ?? "#f0b90b";
+
+    if (resultLabel) resultLabel.textContent = label;
+    if (resultName) resultName.textContent = item.displayName;
+    if (resultRarity) {
+      resultRarity.textContent = item.rarity;
+      resultRarity.style.color = color;
+    }
+    if (imageWrap) renderItemImage(imageWrap, item);
+    if (card) {
+      card.style.borderColor = color;
+      card.style.boxShadow = `0 0 40px ${color}40`;
+    }
+    if (beam) {
+      beam.style.background = `conic-gradient(from 0deg, transparent, ${color}, transparent)`;
+    }
+
+    show("result-panel");
+  }
+
+  async function main() {
+    const slug = (window as any).__lootBoxSlug as string;
+    const me = await getMe();
+
+    const detail = await getLootBoxDetail(slug);
+    hide("state-loading");
+
+    if (!detail) {
+      const msg = document.getElementById("state-error-message");
+      if (msg) msg.textContent = "Esa caja no existe.";
+      show("state-error");
+      return;
+    }
+
+    document.title = `${detail.box.name} · SteamMarket`;
+    const nameEl = document.getElementById("box-name");
+    if (nameEl) nameEl.textContent = detail.box.name;
+
+    const imgWrap = document.getElementById("box-image-wrap");
+    if (imgWrap && detail.box.imageUrl) renderItemImage(imgWrap, detail.box);
+
+    const btnOpen = document.getElementById("btn-open") as HTMLButtonElement | null;
+    if (btnOpen) {
+      btnOpen.textContent = detail.box.price > 0 ? `Abrir por ${soles.format(detail.box.price)}` : "Abrir gratis";
+    }
+
+    // Contenido de la caja (siempre visible, con o sin sesion), en grilla con % de probabilidad
+    // (mismo calculo que el panel de admin: peso del item / suma de todos los pesos del pool).
+    const contentsGrid = document.getElementById("contents-body");
+    if (contentsGrid) {
+      if (detail.contents.length === 0) {
+        show("contents-empty");
+      } else {
+        const totalWeight = detail.contents.reduce((sum, i) => sum + i.weight, 0);
+
+        for (const item of detail.contents) {
+          const pct = totalWeight > 0 ? (item.weight / totalWeight) * 100 : 0;
+          const color = RARITY_COLORS[item.rarity] ?? "#4b5563";
+
+          const card = document.createElement("div");
+          card.className =
+            "group relative flex aspect-square flex-col items-center overflow-hidden rounded-lg border-b-4 bg-surface-container-low p-3";
+          card.style.borderColor = color;
+
+          const pctBadge = document.createElement("span");
+          pctBadge.className = "absolute right-2 top-2 font-label text-[10px] font-bold";
+          pctBadge.style.color = color;
+          pctBadge.textContent = pct >= 0.1 ? `${pct.toFixed(1)}%` : "<0.1%";
+          card.appendChild(pctBadge);
+
+          const imgWrap = document.createElement("div");
+          imgWrap.className = "mb-2 flex flex-1 w-full items-center justify-center transition duration-300 group-hover:scale-110";
+          renderItemImage(imgWrap, item);
+          card.appendChild(imgWrap);
+
+          const name = document.createElement("p");
+          name.className = "line-clamp-1 w-full text-center text-xs text-on-surface";
+          name.textContent = item.displayName;
+          card.appendChild(name);
+
+          contentsGrid.appendChild(card);
+        }
+      }
+    }
+
+    if (!me.authenticated) {
+      const link = document.getElementById("login-gate-link") as HTMLAnchorElement | null;
+      if (link) link.href = loginUrl(new URL(window.location.pathname, window.location.origin).toString());
+      show("login-gate");
+      show("state-content");
+      return;
+    }
+
+    show("box-actions");
+    document.getElementById("box-actions")?.classList.add("flex");
+    renderPitySegments();
+    updatePityUi(detail.pityCount);
+    show("state-content");
+
+    const btnDemo = document.getElementById("btn-demo") as HTMLButtonElement | null;
+    const openError = document.getElementById("open-error");
+
+    btnDemo?.addEventListener("click", async () => {
+      hide("open-error");
+      btnDemo.disabled = true;
+      if (btnOpen) btnOpen.disabled = true;
+      const original = btnDemo.textContent;
+      btnDemo.textContent = "Abriendo...";
+
+      const result = await demoOpenLootBox(slug);
+
+      if (!result.success || !result.item) {
+        btnDemo.disabled = false;
+        if (btnOpen) btnOpen.disabled = false;
+        btnDemo.textContent = original;
+        if (openError) {
+          openError.textContent = result.error ?? "No se pudo hacer la prueba.";
+          show("open-error");
+        }
+        return;
+      }
+
+      await runSpin(result.item, detail.contents);
+
+      btnDemo.disabled = false;
+      if (btnOpen) btnOpen.disabled = false;
+      btnDemo.textContent = original;
+
+      document.getElementById("result-win-actions")?.classList.add("hidden");
+      renderResult(result.item, "Prueba gratis (no cuenta como premio real):");
+    });
+
+    btnOpen?.addEventListener("click", async () => {
+      hide("open-error");
+      btnOpen.disabled = true;
+      if (btnDemo) btnDemo.disabled = true;
+      const original = btnOpen.textContent;
+      btnOpen.textContent = "Abriendo...";
+
+      const result = await openLootBox(slug);
+
+      if (!result.success || !result.win) {
+        btnOpen.disabled = false;
+        if (btnDemo) btnDemo.disabled = false;
+        btnOpen.textContent = original;
+        if (openError) {
+          openError.textContent = result.error ?? "No se pudo abrir la caja.";
+          show("open-error");
+        }
+        return;
+      }
+
+      const win = result.win;
+      const wonItem = {
+        id: win.id,
+        marketHashName: "",
+        displayName: win.itemName,
+        hero: null,
+        slot: null,
+        type: "",
+        rarity: win.rarity,
+        imageUrl: win.itemImageUrl,
+        weight: 0,
+      };
+
+      await runSpin(wonItem, detail.contents);
+
+      btnOpen.disabled = false;
+      if (btnDemo) btnDemo.disabled = false;
+      btnOpen.textContent = original;
+
+      if (typeof result.pityCount === "number") updatePityUi(result.pityCount);
+
+      renderResult(
+        wonItem,
+        result.wasFree ? "¡Ganaste (caja gratis por fidelidad)!" : "¡Ganaste!"
+      );
+
+      const winActions = document.getElementById("result-win-actions");
+      const actionMessage = document.getElementById("result-action-message");
+      winActions?.classList.remove("hidden");
+      winActions?.classList.add("flex");
+
+      document.getElementById("btn-sell")?.addEventListener(
+        "click",
+        async () => {
+          const sellResult = await sellLootBoxWin(win.id);
+          if (actionMessage) {
+            actionMessage.textContent = sellResult.error
+              ? sellResult.error
+              : `Vendido por ${soles.format(sellResult.creditedAmount ?? 0)}. Se acreditó a tu billetera.`;
+            actionMessage.className = `mt-3 text-sm ${sellResult.error ? "text-dota-red" : "text-emerald-500"}`;
+            show("result-action-message");
+          }
+          winActions?.classList.add("hidden");
+        },
+        { once: true }
+      );
+
+      document.getElementById("btn-redeem")?.addEventListener(
+        "click",
+        async () => {
+          const error = await redeemLootBoxWin(win.id);
+          if (actionMessage) {
+            actionMessage.textContent = error
+              ? error
+              : "Canje enviado: abre Steam y acepta el intercambio para recibir tu item.";
+            actionMessage.className = `mt-3 text-sm ${error ? "text-dota-red" : "text-emerald-500"}`;
+            show("result-action-message");
+          }
+          winActions?.classList.add("hidden");
+        },
+        { once: true }
+      );
+    });
+  }
+
+  main();
+</script>

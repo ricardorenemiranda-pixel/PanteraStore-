@@ -1,14 +1,68 @@
 @import "tailwindcss";
 
+/* Paleta "casino dorado" (inspirada en giordota.com / mockups de Stitch), aplicada bajo los
+   mismos nombres de variable que ya usa todo el sitio (dota-bg/panel/border/gold/red) para que
+   cada pagina existente herede el look nuevo sin tener que tocar sus clases una por una. */
 @theme {
-  --color-dota-bg: #100b1e;
-  --color-dota-panel: #1b1533;
-  --color-dota-border: #3a2d5c;
-  --color-dota-red: #9333ea;
-  --color-dota-gold: #c084fc;
+  --color-dota-bg: #0b0e11;
+  --color-dota-panel: #16191c;
+  --color-dota-border: #2a2e33;
+  --color-dota-gold: #f0b90b;
+  --color-dota-gold-light: #ffd87f;
+  --color-dota-red: #d70357;
+
+  /* Superficies extra (tarjetas, paneles elevados, inputs) */
+  --color-surface: #111417;
+  --color-surface-container: #1d2023;
+  --color-surface-container-high: #272a2e;
+  --color-surface-container-highest: #323538;
+  --color-surface-container-low: #191c1f;
+  --color-surface-container-lowest: #0b0e11;
+  --color-on-surface: #e1e2e7;
+  --color-on-surface-variant: #a8a2a2;
+
+  /* Colores fijos de rareza (mismos que usa el resto del backend/frontend para badges) */
+  --color-rarity-common: #878687;
+  --color-rarity-rare: #0070dd;
+  --color-rarity-mythical: #a335ee;
+  --color-rarity-legendary: #ff8000;
+  --color-rarity-ancient: #e6cc80;
+  --color-rarity-immortal: #f0b90b;
+
+  --font-headline: "Montserrat", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "JetBrains Mono", monospace;
 }
 
 body {
   background-color: var(--color-dota-bg);
-  color: #e7e7e7;
+  color: var(--color-on-surface);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, .font-headline {
+  font-family: var(--font-headline);
+}
+
+.font-label {
+  font-family: var(--font-label);
+}
+
+/* Iconos Material Symbols (import de las fuentes en Layout.astro) */
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* Glow de borde segun rareza, usado en tarjetas de items/premios */
+.rarity-glow-immortal { box-shadow: 0 0 15px rgba(240, 185, 11, 0.25); border-color: var(--color-rarity-immortal) !important; }
+.rarity-glow-legendary { box-shadow: 0 0 15px rgba(255, 128, 0, 0.25); border-color: var(--color-rarity-legendary) !important; }
+.rarity-glow-mythical { box-shadow: 0 0 15px rgba(163, 53, 238, 0.25); border-color: var(--color-rarity-mythical) !important; }
+.rarity-glow-rare { box-shadow: 0 0 15px rgba(0, 112, 221, 0.25); border-color: var(--color-rarity-rare) !important; }
+
+.glass-panel {
+  background: rgba(22, 25, 28, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(42, 46, 51, 0.5);
 }

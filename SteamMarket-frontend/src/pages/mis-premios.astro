@@ -1,0 +1,187 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Mis premios">
+  <div id="state-loading" class="py-20 text-center text-neutral-400">Cargando...</div>
+
+  <div id="state-login-gate" class="hidden flex-col items-center gap-4 rounded-xl border border-dota-border bg-surface-container-low px-8 py-16 text-center">
+    <span class="material-symbols-outlined text-5xl text-dota-gold">lock</span>
+    <div>
+      <h2 class="font-headline text-xl font-bold text-on-surface">Inicia sesión para ver tus premios</h2>
+      <p class="mt-1 max-w-sm text-sm text-on-surface-variant">
+        Conecta tu cuenta de Steam para ver los items que ganaste en las cajas y venderlos o canjearlos.
+      </p>
+    </div>
+    <a
+      id="state-login-gate-link"
+      href="#"
+      class="rounded-lg bg-dota-gold px-6 py-3 font-label text-xs font-bold uppercase tracking-wide text-surface-container-lowest transition hover:brightness-110"
+    >
+      Iniciar sesión con Steam
+    </a>
+  </div>
+
+  <div id="state-empty" class="hidden py-20 text-center text-neutral-400">
+    Todavía no ganaste ningún premio en las cajas. <a href="/cajas" class="text-dota-gold hover:underline">Ver cajas</a>
+  </div>
+
+  <div id="state-content" class="hidden grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+</Layout>
+
+<script>
+  import { getMe, getMyLootBoxWins, sellLootBoxWin, redeemLootBoxWin, loginUrl, type LootBoxWinDto } from "../lib/api";
+
+  const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
+  const dateFmt = new Intl.DateTimeFormat("es-PE", { dateStyle: "medium", timeStyle: "short" });
+
+  const RARITY_COLORS: Record<string, string> = {
+    Immortal: "#E4AE39",
+    Arcana: "#ADE55C",
+    Mythical: "#8847FF",
+    Legendary: "#D2440D",
+  };
+
+  const STATUS_LABELS: Record<string, { text: string; color: string }> = {
+    Reserved: { text: "Listo para vender o canjear", color: "text-dota-gold" },
+    PendingRedeem: { text: "Canje en camino (revisa Steam)", color: "text-yellow-500" },
+    Sold: { text: "Vendido", color: "text-emerald-500" },
+    Redeemed: { text: "Canjeado", color: "text-emerald-500" },
+  };
+
+  function renderCard(win: LootBoxWinDto): HTMLElement {
+    const card = document.createElement("div");
+    card.className = "flex flex-col gap-3 rounded-lg border border-dota-border bg-dota-panel p-4";
+
+    const top = document.createElement("div");
+    top.className = "flex items-center gap-3";
+
+    const imgWrap = document.createElement("div");
+    imgWrap.className = "flex h-16 w-16 shrink-0 items-center justify-center rounded border border-dota-border bg-dota-bg/60";
+    if (win.itemImageUrl) {
+      const img = document.createElement("img");
+      img.src = win.itemImageUrl;
+      img.alt = win.itemName;
+      img.className = "h-full w-full object-contain";
+      imgWrap.appendChild(img);
+    } else {
+      imgWrap.textContent = "🎁";
+    }
+
+    const info = document.createElement("div");
+    const name = document.createElement("p");
+    name.className = "font-medium text-neutral-100";
+    name.textContent = win.itemName;
+    const rarity = document.createElement("p");
+    rarity.className = "text-sm";
+    rarity.style.color = RARITY_COLORS[win.rarity] ?? "#ffffff";
+    rarity.textContent = win.rarity;
+    const box = document.createElement("p");
+    box.className = "text-xs text-neutral-500";
+    box.textContent = `Caja: ${win.boxName} · ${dateFmt.format(new Date(win.wonAtUtc))}`;
+
+    info.appendChild(name);
+    info.appendChild(rarity);
+    info.appendChild(box);
+    top.appendChild(imgWrap);
+    top.appendChild(info);
+
+    const status = document.createElement("p");
+    const info2 = STATUS_LABELS[win.status] ?? { text: win.status, color: "text-neutral-400" };
+    status.className = `text-sm font-medium ${info2.color}`;
+    status.textContent = info2.text;
+
+    card.appendChild(top);
+    card.appendChild(status);
+
+    if (win.status === "Reserved") {
+      const actions = document.createElement("div");
+      actions.className = "flex gap-2";
+
+      const btnSell = document.createElement("button");
+      btnSell.className = "flex-1 rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:brightness-110";
+      btnSell.textContent = "Vender a la web";
+
+      const btnRedeem = document.createElement("button");
+      btnRedeem.className =
+        "flex-1 rounded-md border border-dota-gold/50 bg-dota-gold/10 px-3 py-2 text-sm font-medium text-dota-gold transition hover:bg-dota-gold/20";
+      btnRedeem.textContent = "Canjear por Steam";
+
+      const message = document.createElement("p");
+      message.className = "hidden text-sm";
+
+      btnSell.addEventListener(
+        "click",
+        async () => {
+          btnSell.disabled = true;
+          btnRedeem.disabled = true;
+          const result = await sellLootBoxWin(win.id);
+          message.textContent = result.error
+            ? result.error
+            : `Vendido por ${soles.format(result.creditedAmount ?? 0)}.`;
+          message.className = `text-sm ${result.error ? "text-dota-red" : "text-emerald-500"}`;
+          message.classList.remove("hidden");
+          if (!result.error) actions.classList.add("hidden");
+          else {
+            btnSell.disabled = false;
+            btnRedeem.disabled = false;
+          }
+        },
+        { once: true }
+      );
+
+      btnRedeem.addEventListener(
+        "click",
+        async () => {
+          btnSell.disabled = true;
+          btnRedeem.disabled = true;
+          const error = await redeemLootBoxWin(win.id);
+          message.textContent = error ? error : "Canje enviado: abre Steam y acepta el intercambio.";
+          message.className = `text-sm ${error ? "text-dota-red" : "text-emerald-500"}`;
+          message.classList.remove("hidden");
+          if (!error) actions.classList.add("hidden");
+          else {
+            btnSell.disabled = false;
+            btnRedeem.disabled = false;
+          }
+        },
+        { once: true }
+      );
+
+      actions.appendChild(btnSell);
+      actions.appendChild(btnRedeem);
+      card.appendChild(actions);
+      card.appendChild(message);
+    }
+
+    return card;
+  }
+
+  async function main() {
+    const me = await getMe();
+    if (!me.authenticated) {
+      document.getElementById("state-loading")?.classList.add("hidden");
+      const link = document.getElementById("state-login-gate-link") as HTMLAnchorElement | null;
+      if (link) link.href = loginUrl(new URL(window.location.pathname, window.location.origin).toString());
+      document.getElementById("state-login-gate")?.classList.remove("hidden");
+      document.getElementById("state-login-gate")?.classList.add("flex");
+      return;
+    }
+
+    const wins = await getMyLootBoxWins();
+    document.getElementById("state-loading")?.classList.add("hidden");
+
+    if (wins.length === 0) {
+      document.getElementById("state-empty")?.classList.remove("hidden");
+      return;
+    }
+
+    const contentEl = document.getElementById("state-content");
+    if (!contentEl) return;
+
+    for (const win of wins) contentEl.appendChild(renderCard(win));
+    contentEl.classList.remove("hidden");
+  }
+
+  main();
+</script>

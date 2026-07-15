@@ -9,6 +9,20 @@ interface Props {
 
 const { title, wide = false } = Astro.props;
 const loginHref = loginUrl(new URL("/inventario", Astro.site ?? Astro.url.origin).toString());
+
+// Navegacion principal (sidebar en desktop, fila propia en mobile). Siempre visible, este de
+// sesion o no: las paginas de Inventario/Billetera/Mis premios ya saben mostrar su propio
+// panel de "inicia sesion" si hace falta (ver login-gate en cada una), asi que ocultar el link
+// del sidebar solo confundia -- un invitado nunca se enteraba de que esas secciones existian.
+const NAV_ITEMS = [
+  { href: "/cajas", label: "Cajas", icon: "inventory_2" },
+  { href: "/inventario", label: "Mi inventario", icon: "backpack" },
+  { href: "/billetera", label: "Billetera", icon: "account_balance_wallet" },
+  { href: "/mis-premios", label: "Mis premios", icon: "redeem" },
+];
+
+const pathname = Astro.url.pathname;
+const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 ---
 
 <!doctype html>
@@ -17,90 +31,185 @@ const loginHref = loginUrl(new URL("/inventario", Astro.site ?? Astro.url.origin
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
     <title>{title} · SteamMarket</title>
   </head>
-  <body class="min-h-screen bg-dota-bg text-neutral-100 antialiased">
-    <header class="border-b border-dota-border bg-dota-panel/60 backdrop-blur">
-      <div class={`mx-auto flex items-center justify-between px-6 py-4 ${wide ? "max-w-[1600px]" : "max-w-5xl"}`}>
-        <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+  <body class="min-h-screen bg-dota-bg text-on-surface antialiased font-body">
+    <!-- Barra superior: logo, saldo (solo logueado), y cuenta. La navegacion principal vive en
+    el sidebar (desktop) o en la fila de abajo (mobile), no aca -- igual que el mockup. -->
+    <header class="sticky top-0 z-50 border-b border-dota-border bg-surface/90 backdrop-blur-md shadow-md">
+      <div class="mx-auto flex items-center justify-between px-6 py-4">
+        <a href="/" class="flex items-center gap-2 font-headline text-xl font-black uppercase tracking-tighter">
           <span class="text-dota-gold">Steam</span><span>Market</span>
         </a>
 
-        <nav class="flex items-center gap-4 text-sm">
+        <div class="flex items-center gap-4 text-sm">
+          <div
+            id="nav-balance"
+            class="authlink hidden items-center gap-2 rounded-lg border border-dota-border bg-surface-container px-4 py-1.5"
+          >
+            <span class="font-label text-xs text-on-surface-variant">Soles:</span>
+            <span id="nav-balance-amount" class="font-label text-sm font-bold text-dota-gold">S/ 0.00</span>
+          </div>
+
           <a
             id="nav-login"
             href={loginHref}
-            class="hidden rounded-md bg-dota-red px-4 py-2 font-medium text-white transition hover:brightness-110"
+            class="hidden items-center gap-2 rounded-lg bg-dota-gold px-4 py-2 font-bold text-surface-container-lowest uppercase tracking-wide transition hover:brightness-110 active:scale-95"
           >
             Iniciar sesión con Steam
           </a>
 
-          <div id="nav-user" class="hidden items-center gap-4">
-            <a href="/inventario" class="text-neutral-300 hover:text-white">Mi inventario</a>
-            <a href="/billetera" class="text-neutral-300 hover:text-white">Billetera</a>
-            <a id="nav-admin-link" href="/admin" class="hidden text-dota-gold hover:text-white">Admin</a>
+          <div id="nav-user" class="relative hidden items-center gap-4">
+            <button
+              id="nav-user-trigger"
+              class="flex items-center gap-2 rounded-lg border border-dota-border bg-surface-container px-3 py-1.5 text-on-surface-variant transition hover:border-dota-gold/50 hover:text-white"
+            >
+              <span
+                id="nav-user-avatar"
+                class="flex h-6 w-6 items-center justify-center rounded-full bg-dota-gold/20 text-xs font-semibold text-dota-gold"
+              ></span>
+              <span id="nav-user-name"></span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-on-surface-variant">
+                <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
 
-            <div class="relative">
+            <div
+              id="nav-user-menu"
+              class="absolute right-0 top-full z-50 mt-2 hidden w-48 rounded-lg border border-dota-border bg-surface-container py-1 shadow-lg"
+            >
+              <a href="/perfil" class="block px-4 py-2 text-on-surface-variant transition hover:bg-dota-bg hover:text-white">Perfil</a>
+              <a href="/seguridad" class="block px-4 py-2 text-on-surface-variant transition hover:bg-dota-bg hover:text-white">Seguridad</a>
+              <a href="/cambiar-clave" class="block px-4 py-2 text-on-surface-variant transition hover:bg-dota-bg hover:text-white">Cambiar clave</a>
+              <a href="/trade-url" class="block px-4 py-2 text-on-surface-variant transition hover:bg-dota-bg hover:text-white">Trade URL</a>
+              <hr class="my-1 border-dota-border" />
               <button
-                id="nav-user-trigger"
-                class="flex items-center gap-2 rounded-md border border-dota-border px-3 py-1.5 text-neutral-300 transition hover:border-dota-gold/50 hover:text-white"
+                id="nav-logout"
+                class="block w-full px-4 py-2 text-left text-on-surface-variant transition hover:bg-dota-red/10 hover:text-dota-red"
               >
-                <span
-                  id="nav-user-avatar"
-                  class="flex h-6 w-6 items-center justify-center rounded-full bg-dota-gold/20 text-xs font-semibold text-dota-gold"
-                ></span>
-                <span id="nav-user-name"></span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="text-neutral-500">
-                  <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
+                Cerrar sesión
               </button>
-
-              <div
-                id="nav-user-menu"
-                class="absolute right-0 top-full z-50 mt-2 hidden w-48 rounded-lg border border-dota-border bg-dota-panel py-1 shadow-lg"
-              >
-                <a href="/perfil" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Perfil</a>
-                <a href="/seguridad" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Seguridad</a>
-                <a href="/cambiar-clave" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Cambiar clave</a>
-                <a href="/trade-url" class="block px-4 py-2 text-neutral-300 transition hover:bg-dota-bg hover:text-white">Trade URL</a>
-                <hr class="my-1 border-dota-border" />
-                <button
-                  id="nav-logout"
-                  class="block w-full px-4 py-2 text-left text-neutral-300 transition hover:bg-dota-red/10 hover:text-dota-red"
-                >
-                  Cerrar sesión
-                </button>
-              </div>
             </div>
           </div>
-        </nav>
+        </div>
       </div>
+
+      <!-- Nav movil: el sidebar de abajo esta oculto por debajo de lg, esta fila lo reemplaza. -->
+      <nav class="flex items-center gap-5 overflow-x-auto border-t border-dota-border px-6 py-2 text-sm lg:hidden">
+        {NAV_ITEMS.map((item) => (
+          <a
+            href={item.href}
+            class:list={[
+              "whitespace-nowrap transition",
+              isActive(item.href) ? "font-bold text-dota-gold" : "text-on-surface-variant hover:text-dota-gold",
+            ]}
+          >
+            {item.label}
+          </a>
+        ))}
+        <a
+          id="nav-admin-link-mobile"
+          href="/admin"
+          class:list={[
+            "adminlink hidden whitespace-nowrap transition",
+            isActive("/admin") ? "font-bold text-dota-gold" : "text-dota-gold/70 hover:text-dota-gold",
+          ]}
+        >
+          Admin
+        </a>
+      </nav>
     </header>
 
-    <main class={`mx-auto px-6 py-10 ${wide ? "max-w-[1600px]" : "max-w-5xl"}`}>
+    <!-- Sidebar "Command Center": solo desktop (lg+), fijo debajo del header. -->
+    <aside class="fixed bottom-0 left-0 top-[65px] z-40 hidden w-64 flex-col border-r border-dota-border bg-dota-panel lg:flex">
+      <div class="p-6">
+        <p class="font-label text-xs uppercase tracking-widest text-on-surface-variant">Panel</p>
+        <p id="sidebar-user-name" class="mt-1 truncate font-headline text-lg font-bold text-dota-gold">Invitado</p>
+      </div>
+
+      <nav class="flex flex-1 flex-col gap-1 px-3">
+        {NAV_ITEMS.map((item) => (
+          <a
+            href={item.href}
+            class:list={[
+              "flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition",
+              isActive(item.href)
+                ? "border-r-4 border-dota-gold bg-surface-container-highest text-dota-gold"
+                : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",
+            ]}
+          >
+            <span class="material-symbols-outlined text-xl">{item.icon}</span>
+            <span class="font-label text-xs uppercase tracking-wide">{item.label}</span>
+          </a>
+        ))}
+        <a
+          id="sidebar-admin-link"
+          href="/admin"
+          class:list={[
+            "adminlink hidden flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition",
+            isActive("/admin")
+              ? "border-r-4 border-dota-gold bg-surface-container-highest text-dota-gold"
+              : "text-dota-gold/80 hover:bg-surface-container-high hover:text-dota-gold",
+          ]}
+        >
+          <span class="material-symbols-outlined text-xl">shield</span>
+          <span class="font-label text-xs uppercase tracking-wide">Admin</span>
+        </a>
+      </nav>
+
+      <div class="authlink hidden p-4">
+        <a
+          href="/cajas"
+          class="flex w-full items-center justify-center gap-2 rounded-lg bg-dota-red py-3 font-label text-xs font-black uppercase tracking-widest text-white transition hover:brightness-110"
+        >
+          <span class="material-symbols-outlined text-base">bolt</span>
+          Abrir cajas
+        </a>
+      </div>
+    </aside>
+
+    <main class={`mx-auto px-6 py-10 lg:pl-72 ${wide ? "max-w-[1600px]" : "max-w-5xl"}`}>
       <slot />
     </main>
 
     <script>
-      import { getMe, logout, loginUrl } from "../lib/api";
+      import { getMe, getWallet, logout, loginUrl } from "../lib/api";
+
+      const soles = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
 
       async function syncAuthUi() {
         const me = await getMe();
 
         const loginLink = document.getElementById("nav-login") as HTMLAnchorElement | null;
         const userBox = document.getElementById("nav-user");
-        const userName = document.getElementById("nav-user-name");
+        const userNameEls = document.querySelectorAll("#nav-user-name, #sidebar-user-name");
         const userAvatar = document.getElementById("nav-user-avatar");
-        const adminLink = document.getElementById("nav-admin-link");
+        const authLinks = document.querySelectorAll(".authlink");
+        const adminLinks = document.querySelectorAll(".adminlink");
+        const balanceBox = document.getElementById("nav-balance");
+        const balanceAmount = document.getElementById("nav-balance-amount");
 
         if (me.authenticated) {
           loginLink?.classList.add("hidden");
           userBox?.classList.remove("hidden");
           userBox?.classList.add("flex");
+
           const name = me.name ?? "Jugador";
-          if (userName) userName.textContent = name;
+          userNameEls.forEach((el) => (el.textContent = name));
           if (userAvatar) userAvatar.textContent = name.trim().charAt(0).toUpperCase() || "?";
-          adminLink?.classList.toggle("hidden", !me.isAdmin);
+
+          authLinks.forEach((el) => el.classList.remove("hidden"));
+          adminLinks.forEach((el) => el.classList.toggle("hidden", !me.isAdmin));
+
+          balanceBox?.classList.add("flex");
+          const wallet = await getWallet();
+          if (balanceAmount) balanceAmount.textContent = soles.format(wallet?.balance ?? 0);
         } else {
           if (loginLink) {
             loginLink.href = loginUrl(new URL("/inventario", window.location.origin).toString());
@@ -108,6 +217,12 @@ const loginHref = loginUrl(new URL("/inventario", Astro.site ?? Astro.url.origin
           loginLink?.classList.remove("hidden");
           userBox?.classList.add("hidden");
           userBox?.classList.remove("flex");
+
+          authLinks.forEach((el) => el.classList.add("hidden"));
+          adminLinks.forEach((el) => el.classList.add("hidden"));
+
+          const sidebarName = document.getElementById("sidebar-user-name");
+          if (sidebarName) sidebarName.textContent = "Invitado";
         }
       }
 
